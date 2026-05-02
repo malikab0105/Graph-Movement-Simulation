@@ -7,4 +7,6 @@ include_directories(.)
 
 add_executable(Graph_Movement_Simulation
         graph.c
-        graph.h)
+        graph.h
+        main.c
+)
