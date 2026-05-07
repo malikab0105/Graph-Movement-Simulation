@@ -9,4 +9,15 @@ add_executable(Graph_Movement_Simulation
         graph.c
         graph.h
         main.c
+        draw.c
+        draw.h
+)
+target_link_libraries(
+        Graph_Movement_Simulation
+        raylib
+        m
+        pthread
+        dl
+        rt
+        X11
 )
