@@ -11,6 +11,8 @@ add_executable(Graph_Movement_Simulation
         main.c
         draw.c
         draw.h
+        animate.c
+        animate.h
 )
 target_link_libraries(
         Graph_Movement_Simulation
