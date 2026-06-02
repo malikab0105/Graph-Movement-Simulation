@@ -2,6 +2,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+char *rooms[] = {
+    "Entrance Hall",    // 0
+    "Library",          // 1
+    "Kitchen",          // 2
+    "Piano Room",       // 3
+    "Dining Room",      // 4
+    "Ballroom",         // 5
+    "Trophy Room",      // 6
+    "Master Bedroom",   // 7
+    "Attic",            // 8
+    "Basement",         // 9
+    "Garden",           // 10
+    "Garage",           // 11
+    "Study",            // 12
+    "Wine Cellar",      // 13
+    "Servant Quarters"  // 14
+};
+
+int numRooms = 15;
+
+
 Graph *createGraph(int n) {
     Graph *g = malloc (sizeof(Graph));
     g->node = n;
@@ -39,72 +61,81 @@ Graph *readGraph(const char *filename, int *src, int *dist) {
 
     Graph *g = createGraph(n);
     for (int i = 0; i < m; i++) {
-        int s,d,w;
-        fscanf(f, "%d %d %d", &s , &d , &w); //scans source, destination & weight
+        int s, d, w;
+        fscanf(f, "%d %d %d", &s, &d, &w);
+
+        if (w < 0) {
+            printf("Error: negative edge weight detected\n");
+            freeGraph(g);
+            fclose(f);
+            return NULL;
+        }
+
         addEdge(g, s, d, w);
     }
+
     fscanf(f, "%d %d", src, dist); //scans dijkestra's input parameters
     fclose(f);
+
     return g;
 }
 
-void dijkstra(Graph *g, int src, int dist) {
+void dijkstra (Graph *g, int src, int dst) {
     int n = g->node;
-    int distance[n] , visited[n], prev[n];
+    int dist[n], visited[n], prev[n];
 
     for (int i = 0; i < n; i++) {
-        distance[i] = 100;
+        dist[i] = 999999;
         visited[i] = 0;
         prev[i] = -1;
     }
-    distance[src] = 0;
+    dist[src] = 0;
 
-    for (int i = 0; i < n; i++) {  //main loop - finds unvisited node with smallest dist
+    // handle src == dst before running
+    if (src == dst) {
+        printf("%d\n0\n", src);
+        return;
+    }
+
+    for (int i = 0; i < n; i++) {
         int u = -1;
         for (int j = 0; j < n; j++) {
-            if (!visited[j] && (u == -1 || distance[j] < distance[u])) {
+            if (!visited[j] && (u == -1 || dist[j] < dist[u]))
                 u = j;
-            }
         }
-        if (distance[u] == 100) {break;}  //remaining nodes unreachable
+        if (u == -1 || dist[u] == 999999) break;
         visited[u] = 1;
 
-        for (int j = 0; j < n; j++) {      //updates neighbors
-            if (g -> matrix[u][j] != 0 && !visited[j]) {
-                int newDist = distance[u] + g->matrix[u][j];
-                if (newDist < distance[j]) {
-                    distance[j] = newDist;
+        for (int j = 0; j < n; j++) {
+            if (g->matrix[u][j] != 0 && !visited[j]) {
+                int newDist = dist[u] + g->matrix[u][j];
+                if (newDist < dist[j]) {
+                    dist[j] = newDist;
                     prev[j] = u;
                 }
             }
         }
     }
 
-    //special cases
-    if (src == dist) {
-        printf("%d \n0\n", src);
-        return;
-    }
-    if (distance[dist] == 100) {
+    if (dist[dst] == 999999) {
         printf("No path found\n");
         return;
     }
 
-    //creating an array using the newly found path & printing it:
-    int path[n] , count = 0;
-    for (int i = dist; i != -1; i = prev[i]) {
-        path[count++] = i;
-    }
+    // reconstruct path
+    int tempPath[n];
+    int count = 0;
+    for (int v = dst; v != -1; v = prev[v])
+        tempPath[count++] = v;
 
+    // print in correct order
     for (int i = count - 1; i >= 0; i--) {
-        if (i == 0) {
-            printf("%d\n", path[i]);
-        }
-        else {
-            printf("%d -> ", path[i]);
-        }
+        if (i == 0)
+            printf("%d\n", tempPath[i]);
+        else
+            printf("%d -> ", tempPath[i]);
     }
-    printf("%d\n" , distance[dist]);
+    printf("%d\n", dist[dst]);
 }
 
 
