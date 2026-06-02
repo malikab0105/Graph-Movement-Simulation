@@ -24,7 +24,7 @@ make milestone1
 ```
 **Run:**
 ```bash
-cd milestone1 && ./milestone1
+cd milestone1 && ./dijkstra <filename with extension>
 ```
 
 ### Milestone 2 — Graph Visualization
@@ -51,5 +51,5 @@ make milestone3
 ```
 **Run:**
 ```bash
-cd milestone3 && ./milestone3
+cd milestone3 && ./sim <filename with extension>
 ```
