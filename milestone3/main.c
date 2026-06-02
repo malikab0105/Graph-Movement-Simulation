@@ -3,14 +3,19 @@
 #include "draw.h"
 #include "animate.h"
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        printf("Usage: ./sim <input_file>\n");
+        return 1;
+    }
+
     int src, dst;
-    Graph *g = readGraph("input2.txt", &src, &dst);
+    Graph *g = readGraph(argv[1], &src, &dst);
     if (g == NULL) return 1;
 
-    // get dijkstra path
     int path[15];
     int pathLength = dijkstra(g, src, dst, path);
+
     Vector2 positions[g->node];
     calculatePositions(g, positions);
 
@@ -21,7 +26,6 @@ int main() {
 
     while (!WindowShouldClose()) {
         updateAnimation(&anim, g, positions);
-
         BeginDrawing();
         ClearBackground(RAYWHITE);
         drawGraph(g, positions);
