@@ -38,7 +38,7 @@ make milestone2
 ```
 **Run:**
 ```bash
-cd milestone2 && ./milestone2
+cd milestone2 && ./sim <filename with extension>
 ```
 
 ### Milestone 3 — Animation
