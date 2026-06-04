@@ -19,7 +19,8 @@ int readGraphExtended(const char *filename, Graph **g_out, TravelerInfo *travele
 
 int dijkstra(Graph *g, int src, int dst, int *path);
 
-extern char *rooms[];
+// Fixed: char rooms[][48] so entries are writable 48-byte buffers (not read-only literals)
+extern char rooms[][48];
 extern int numRooms;
 
-#endif //GRAPH_MOVEMENT_SIMULATION_GRAPH_H
+#endif

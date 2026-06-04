@@ -3,7 +3,6 @@
 
 #include "raylib.h"
 #include "graph.h"
-#include <math.h>
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600

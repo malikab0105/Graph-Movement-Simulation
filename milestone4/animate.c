@@ -91,26 +91,28 @@ void drawAnimation(AnimationState *anim, Vector2 *positions, Graph *g) {
     // --- RENDER TRAVELER CAT AVATAR SPRITE ---
     // Left ear triangle
     DrawTriangle(
-        (Vector2){catPos.x - 2, catPos.y - 10},
-        (Vector2){catPos.x - 8, catPos.y - 35},
+        (Vector2){catPos.x - 2,  catPos.y - 10},
+        (Vector2){catPos.x - 8,  catPos.y - 35},
         (Vector2){catPos.x - 15, catPos.y - 10},
         DARKBROWN
     );
     // Right ear triangle
     DrawTriangle(
         (Vector2){catPos.x + 15, catPos.y - 10},
-        (Vector2){catPos.x + 8, catPos.y - 35},
-        (Vector2){catPos.x + 2, catPos.y - 10},
+        (Vector2){catPos.x + 8,  catPos.y - 35},
+        (Vector2){catPos.x + 2,  catPos.y - 10},
         DARKBROWN
     );
     // Main head base circular mesh
-    DrawCircle(catPos.x, catPos.y, 15, anim->color);
+    DrawCircle((int)catPos.x, (int)catPos.y, 15, anim->color);
 
     // Expressive face details
-    DrawCircle(catPos.x - 5, catPos.y - 4, 3, BLACK); // Left eye
-    DrawCircle(catPos.x + 5, catPos.y - 4, 3, BLACK); // Right eye
-    DrawLine(catPos.x - 3, catPos.y + 4, catPos.x, catPos.y + 6, BLACK); // Left whisker-lip
-    DrawLine(catPos.x, catPos.y + 6, catPos.x + 3, catPos.y + 4, BLACK); // Right whisker-lip
+    DrawCircle((int)catPos.x - 5, (int)catPos.y - 4, 3, BLACK); // Left eye
+    DrawCircle((int)catPos.x + 5, (int)catPos.y - 4, 3, BLACK); // Right eye
+    DrawLine((int)catPos.x - 3, (int)catPos.y + 4,
+             (int)catPos.x,     (int)catPos.y + 6, BLACK); // Left whisker-lip
+    DrawLine((int)catPos.x,     (int)catPos.y + 6,
+             (int)catPos.x + 3, (int)catPos.y + 4, BLACK); // Right whisker-lip
 }
 
 void drawPlayStopButton(AnimationState *anim) {

@@ -18,18 +18,19 @@
 
 #define MAX_TRAVELERS 10
 
-Graph graph;
+Graph *g = NULL;
 AnimationState travelers[MAX_TRAVELERS];
 int travelerCount = 0;
 
-Color ParseColorString(const char *colorStr) {
-    if (strcmp(colorStr, "GREEN") == 0)  return GREEN;
-    if (strcmp(colorStr, "PURPLE") == 0) return PURPLE;
-    if (strcmp(colorStr, "ORANGE") == 0) return ORANGE;
-    if (strcmp(colorStr, "PINK") == 0)   return PINK;
-    if (strcmp(colorStr, "GOLD") == 0)   return GOLD;
-    return BLUE;
-}
+// Default colors assigned in order
+Color defaultColors[] = {
+    {59,  130, 246, 255},   // blue
+    {34,  197, 94,  255},   // green
+    {251, 146, 60,  255},   // orange
+    {168, 85,  247, 255},   // purple
+    {244, 114, 182, 255},   // pink
+    {234, 179, 8,   255},   // gold
+};
 
 void CleanUpChildren() {
     for (int i = 0; i < travelerCount; i++) {
@@ -49,182 +50,165 @@ int main(int argc, char *argv[]) {
 
     FILE *file = fopen(argv[1], "r");
     if (!file) {
-        perror("Error opening layout configuration file");
+        perror("Error opening input file");
         return 1;
     }
 
-    if (fscanf(file, "%d", &graph.node) != 1) {
+    // Parse "n m"
+    int n, m;
+    if (fscanf(file, "%d %d", &n, &m) != 2) {
+        fprintf(stderr, "Error: could not read node/edge counts\n");
         fclose(file);
         return 1;
     }
 
-    for (int i = 0; i < graph.node; i++) {
-        for (int j = 0; j < graph.node; j++) {
-            graph.matrix[i][j] = 0;
+    g = createGraph(n);
+    if (!g) { fclose(file); return 1; }
+
+    // Parse m edges
+    for (int i = 0; i < m; i++) {
+        int s, d, w;
+        if (fscanf(file, "%d %d %d", &s, &d, &w) != 3) {
+            fprintf(stderr, "Error reading edge %d\n", i);
+            freeGraph(g); fclose(file); return 1;
         }
-    }
-
-    for (int i = 0; i < graph.node; i++) {
-        int index;
-        if (fscanf(file, "%d", &index) != 1) {
-            fclose(file);
-            return 1;
+        if (w < 0) {
+            fprintf(stderr, "Error: negative edge weight\n");
+            freeGraph(g); fclose(file); return 1;
         }
-
-        int nextChar = fgetc(file);
-        if (nextChar == ' ') {
-            if (fgets(rooms[i], 48, file) != NULL) {
-                rooms[i][strcspn(rooms[i], "\r\n")] = 0;
-            } else {
-                snprintf(rooms[i], 48, "Room %d", index);
-            }
-        } else {
-            snprintf(rooms[i], 48, "Room %d", index);
-            if (nextChar != '\n' && nextChar != EOF) {
-                while ((nextChar = fgetc(file)) != '\n' && nextChar != EOF);
-            }
-        }
+        g->matrix[s][d] = w;
     }
 
-    int u, v, w;
-    while (fscanf(file, "%d", &u) == 1 && u != -1) {
-        fscanf(file, "%d %d", &v, &w);
-        graph.matrix[u][v] = w;
+    // Parse traveler count
+    if (fscanf(file, "%d", &travelerCount) != 1 ||
+        travelerCount <= 0 || travelerCount > MAX_TRAVELERS) {
+        fprintf(stderr, "Error: invalid traveler count\n");
+        freeGraph(g); fclose(file); return 1;
     }
 
-    if (fscanf(file, "%d", &travelerCount) != 1) {
-        travelerCount = 0;
-    }
-
+    // Parse each traveler and compute route via Dijkstra
     for (int i = 0; i < travelerCount; i++) {
         int startNode, targetNode;
-        char colorName[32];
-        fscanf(file, "%d %d %s", &startNode, &targetNode, colorName);
+        if (fscanf(file, "%d %d", &startNode, &targetNode) != 2) {
+            fprintf(stderr, "Error reading traveler %d\n", i);
+            freeGraph(g); fclose(file); return 1;
+        }
 
-        int route[15];
-        int routeLength = 0;
-
-        int dist[MAX_NODES];
-        int parent[MAX_NODES];
-        int visited[MAX_NODES];
-
-        for (int n = 0; n < graph.node; n++) {
-            dist[n] = 999999;
-            parent[n] = -1;
-            visited[n] = 0;
+        // Dijkstra
+        int dist[MAX_NODES], parent[MAX_NODES], visited[MAX_NODES];
+        for (int k = 0; k < g->node; k++) {
+            dist[k] = 999999; parent[k] = -1; visited[k] = 0;
         }
         dist[startNode] = 0;
 
-        for (int count = 0; count < graph.node - 1; count++) {
-            int min = 999999, min_idx = -1;
-            for (int n = 0; n < graph.node; n++) {
-                if (!visited[n] && dist[n] <= min) {
-                    min = dist[n];
-                    min_idx = n;
-                }
-            }
-            if (min_idx == -1) break;
-            visited[min_idx] = 1;
-
-            for (int n = 0; n < graph.node; n++) {
-                if (!visited[n] && graph.matrix[min_idx][n] && dist[min_idx] != 999999 &&
-                    dist[min_idx] + graph.matrix[min_idx][n] < dist[n]) {
-                    dist[n] = dist[min_idx] + graph.matrix[min_idx][n];
-                    parent[n] = min_idx;
+        for (int pass = 0; pass < g->node - 1; pass++) {
+            int mn = 999999, mi = -1;
+            for (int k = 0; k < g->node; k++)
+                if (!visited[k] && dist[k] < mn) { mn = dist[k]; mi = k; }
+            if (mi == -1) break;
+            visited[mi] = 1;
+            for (int k = 0; k < g->node; k++) {
+                if (!visited[k] && g->matrix[mi][k] &&
+                    dist[mi] + g->matrix[mi][k] < dist[k]) {
+                    dist[k]   = dist[mi] + g->matrix[mi][k];
+                    parent[k] = mi;
                 }
             }
         }
 
-        int tempPath[15], tempCount = 0;
-        int curr = targetNode;
-        while (curr != -1) {
-            tempPath[tempCount++] = curr;
-            curr = parent[curr];
+        // Reconstruct path
+        int tmp[15], tc = 0, route[15], rl = 0;
+        for (int cur = targetNode; cur != -1; cur = parent[cur]) {
+            if (tc >= 15) break;
+            tmp[tc++] = cur;
         }
-        for (int p = tempCount - 1; p >= 0; p--) {
-            route[routeLength++] = tempPath[p];
+        for (int p = tc - 1; p >= 0; p--)
+            route[rl++] = tmp[p];
+
+        if (rl == 0) {
+            fprintf(stderr, "Warning: no path for traveler %d (%d->%d)\n",
+                    i, startNode, targetNode);
+            travelerCount = i;
+            break;
         }
 
-        Color travelerColor = ParseColorString(colorName);
+        printf("Traveler %d: %d->%d  route length=%d  path:", i, startNode, targetNode, rl);
+        for (int p = 0; p < rl; p++) printf(" %d", route[p]);
+        printf("\n");
+
+        Color col = defaultColors[i % 6];
 
         pid_t pid = fork();
         if (pid < 0) {
-            perror("Process creation error");
-            CleanUpChildren();
+            perror("fork");
+            CleanUpChildren(); freeGraph(g); fclose(file); return 1;
+        } else if (pid == 0) {
             fclose(file);
-            return 1;
-        }
-        else if (pid == 0) {
-            fclose(file);
-            while (1) {
-                usleep(50000);
-            }
+            while (1) usleep(50000);
             exit(0);
-        }
-        else {
-            travelers[i] = initAnimation(route, routeLength, travelerColor, pid);
+        } else {
+            travelers[i] = initAnimation(route, rl, col, pid);
         }
     }
     fclose(file);
+
+    printf("Loaded %d traveler(s) on a %d-node graph.\n", travelerCount, g->node);
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Mansion Multi-Process Graph Simulation");
     SetTargetFPS(60);
 
     Vector2 positions[MAX_NODES];
-    calculatePositions(&graph, positions);
+    calculatePositions(g, positions);
 
     Texture2D background = LoadTexture("mansion.png");
 
     while (!WindowShouldClose()) {
-        for (int i = 0; i < travelerCount; i++) {
-            updateAnimation(&travelers[i], &graph, positions);
 
+        // ── Update all travelers ─────────────────────────────────────────────
+        for (int i = 0; i < travelerCount; i++) {
+            updateAnimation(&travelers[i], g, positions);
             if (travelers[i].arrived && travelers[i].childPid > 0) {
                 kill(travelers[i].childPid, SIGKILL);
                 waitpid(travelers[i].childPid, NULL, 0);
                 travelers[i].childPid = 0;
-                printf("[OS System Update] Traveler %d arrived! Child worker terminated.\n", i);
+                printf("[OS] Traveler %d arrived. Child terminated.\n", i);
             }
         }
 
-        bool currentButtonState = travelers[0].isPlaying;
-        drawPlayStopButton(&travelers[0]);
-
-        if (travelers[0].isPlaying != currentButtonState) {
-            for (int i = 1; i < travelerCount; i++) {
-                if (!travelers[i].arrived) {
-                    travelers[i].isPlaying = travelers[0].isPlaying;
-                }
-            }
-        }
-
+        // ── Draw ─────────────────────────────────────────────────────────────
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        if (background.id > 0) {
-            DrawTexturePro(
-                background,
-                (Rectangle){ 0, 0, background.width, background.height },
-                (Rectangle){ 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT },
-                (Vector2){ 0, 0 }, 0.0f,
-                CLITERAL(Color){ 215, 215, 215, 255 }
-            );
-        }
+        if (background.id > 0)
+            DrawTexturePro(background,
+                (Rectangle){0, 0, (float)background.width, (float)background.height},
+                (Rectangle){0, 0, WINDOW_WIDTH, WINDOW_HEIGHT},
+                (Vector2){0, 0}, 0.0f,
+                CLITERAL(Color){215, 215, 215, 255});
 
-        drawGraph(&graph, positions);
+        drawGraph(g, positions);
 
-        for (int i = 0; i < travelerCount; i++) {
-            drawAnimation(&travelers[i], positions, &graph);
-        }
+        for (int i = 0; i < travelerCount; i++)
+            drawAnimation(&travelers[i], positions, g);
 
+        // Button is drawn AND handles click inside BeginDrawing/EndDrawing
+        // so IsMouseButtonPressed works correctly
+        bool prevPlay = travelers[0].isPlaying;
         drawPlayStopButton(&travelers[0]);
+
+        // Sync play/stop to all other travelers
+        if (travelers[0].isPlaying != prevPlay) {
+            for (int i = 1; i < travelerCount; i++)
+                if (!travelers[i].arrived)
+                    travelers[i].isPlaying = travelers[0].isPlaying;
+        }
 
         EndDrawing();
     }
 
     UnloadTexture(background);
     CleanUpChildren();
+    freeGraph(g);
     CloseWindow();
-
     return 0;
 }

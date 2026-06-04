@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char *rooms[] = {
+// Fixed: char rooms[][48] must match extern declaration in graph.h exactly
+char rooms[][48] = {
     "Entrance Hall",    // 0
     "Library",          // 1
     "Kitchen",          // 2

@@ -1,4 +1,6 @@
 #include "draw.h"
+#include <stdio.h>    // snprintf
+#include <math.h>     // sqrtf, atan2f, cosf, sinf
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -30,7 +32,7 @@ void drawGraph(Graph *g, Vector2 *positions) {
                 float len = sqrtf(dx * dx + dy * dy);
 
                 // Create a dynamic control point to bow the road smoothly outward
-                float curvature = 35.0f; // Adjust this value to control the curve depth
+                float curvature = 35.0f;
                 Vector2 control = {
                     mid.x - (dy / len) * curvature,
                     mid.y + (dx / len) * curvature
@@ -61,34 +63,34 @@ void drawGraph(Graph *g, Vector2 *positions) {
                 // Place the weight badge directly on the apex peak of the curve (t = 0.5)
                 Vector2 badgePos = GetBezierPoint(start, control, end, 0.5f);
 
-                DrawCircle(badgePos.x + 1, badgePos.y + 1, 13, BLACK); // Drop Shadow
-                DrawCircle(badgePos.x, badgePos.y, 11, RAYWHITE);       // Isolation mask
-                DrawCircle(badgePos.x, badgePos.y, 9, GOLD);           // Badge center
-                DrawCircleLines(badgePos.x, badgePos.y, 9, MAROON);
+                DrawCircle((int)badgePos.x + 1, (int)badgePos.y + 1, 13, BLACK);
+                DrawCircle((int)badgePos.x, (int)badgePos.y, 11, RAYWHITE);
+                DrawCircle((int)badgePos.x, (int)badgePos.y, 9, GOLD);
+                DrawCircleLines((int)badgePos.x, (int)badgePos.y, 9, MAROON);
 
                 char weightText[16];
                 snprintf(weightText, sizeof(weightText), "%d", g->matrix[i][j]);
                 int textWidth = MeasureText(weightText, 11);
-                DrawText(weightText, badgePos.x - textWidth / 2, badgePos.y - 5, 11, MAROON);
+                DrawText(weightText, (int)badgePos.x - textWidth / 2, (int)badgePos.y - 5, 11, MAROON);
             }
         }
     }
 
     // LAYER 2: Draw Clean, Non-overlapping Rooms
     for (int i = 0; i < g->node; i++) {
-        DrawCircle(positions[i].x + 2, positions[i].y + 2, NODE_RADIUS, CLITERAL(Color){ 0, 0, 0, 35 });
-        DrawCircle(positions[i].x, positions[i].y, NODE_RADIUS, BEIGE);
-        DrawCircleLines(positions[i].x, positions[i].y, NODE_RADIUS, DARKBROWN);
+        DrawCircle((int)positions[i].x + 2, (int)positions[i].y + 2, NODE_RADIUS, CLITERAL(Color){ 0, 0, 0, 35 });
+        DrawCircle((int)positions[i].x, (int)positions[i].y, NODE_RADIUS, BEIGE);
+        DrawCircleLines((int)positions[i].x, (int)positions[i].y, NODE_RADIUS, DARKBROWN);
 
         // Room ID
         char label[16];
         snprintf(label, sizeof(label), "%d", i);
         int numWidth = MeasureText(label, 11);
-        DrawText(label, positions[i].x - numWidth / 2, positions[i].y - 5, 11, MAROON);
+        DrawText(label, (int)positions[i].x - numWidth / 2, (int)positions[i].y - 5, 11, MAROON);
 
         // Clean label padding underneath the node bounds
         int textWidth = MeasureText(rooms[i], 10);
-        DrawText(rooms[i], positions[i].x - textWidth / 2, positions[i].y + NODE_RADIUS + 6, 10, BLACK);
+        DrawText(rooms[i], (int)positions[i].x - textWidth / 2, (int)positions[i].y + NODE_RADIUS + 6, 10, BLACK);
     }
 }
 
@@ -112,8 +114,8 @@ void drawArrowHead(Vector2 tip, float angle, Color color) {
 
 void calculatePositions(Graph *g, Vector2 *positions) {
     float centerX = WINDOW_WIDTH / 2;
-    float centerY = WINDOW_HEIGHT / 2 - 20; // Shift up slightly to leave space for button
-    float radius = 220.0f;                  // Expanded layout circle radius
+    float centerY = WINDOW_HEIGHT / 2 - 20;
+    float radius = 220.0f;
 
     for (int i = 0; i < g->node; i++) {
         float angle = i * (-2.0f * PI / g->node);
