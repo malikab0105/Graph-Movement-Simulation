@@ -1,7 +1,7 @@
 #define _DEFAULT_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
-#include <stdlib.h>
+xxxxxx#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -12,16 +12,19 @@
 #include "draw.h"
 #include "animate.h"
 
+// Safeguard boundaries if missing from the core headers
 #ifndef MAX_NODES
 #define MAX_NODES 30
 #endif
 
 #define MAX_TRAVELERS 10
 
+// Global tracking objects for the simulation
 Graph graph;
 AnimationState travelers[MAX_TRAVELERS];
 int travelerCount = 0;
 
+// Match text strings to Raylib engine presets
 Color ParseColorString(const char *colorStr) {
     if (strcmp(colorStr, "GREEN") == 0)  return GREEN;
     if (strcmp(colorStr, "PURPLE") == 0) return PURPLE;
@@ -31,6 +34,7 @@ Color ParseColorString(const char *colorStr) {
     return BLUE;
 }
 
+// Safely close out child worker processes to prevent zombie instances
 void CleanUpChildren() {
     for (int i = 0; i < travelerCount; i++) {
         if (travelers[i].childPid > 0) {
@@ -58,12 +62,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Initialize clean graph layout matrix boundaries
     for (int i = 0; i < graph.node; i++) {
         for (int j = 0; j < graph.node; j++) {
             graph.matrix[i][j] = 0;
         }
     }
 
+    // Parse rooms indices and textual labels flawlessly
     for (int i = 0; i < graph.node; i++) {
         int index;
         if (fscanf(file, "%d", &index) != 1) {
@@ -86,6 +92,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Parse specific map connection values
     int u, v, w;
     while (fscanf(file, "%d", &u) == 1 && u != -1) {
         fscanf(file, "%d %d", &v, &w);
@@ -96,6 +103,7 @@ int main(int argc, char *argv[]) {
         travelerCount = 0;
     }
 
+    // Calculate Dijkstra path structures safely for each runner process
     for (int i = 0; i < travelerCount; i++) {
         int startNode, targetNode;
         char colorName[32];
@@ -108,6 +116,7 @@ int main(int argc, char *argv[]) {
         int parent[MAX_NODES];
         int visited[MAX_NODES];
 
+        // Safe explicit initialization loops preventing standard Clangd array bugs
         for (int n = 0; n < graph.node; n++) {
             dist[n] = 999999;
             parent[n] = -1;
@@ -147,6 +156,7 @@ int main(int argc, char *argv[]) {
 
         Color travelerColor = ParseColorString(colorName);
 
+        // Spawn parallel task processes for each running path sequence
         pid_t pid = fork();
         if (pid < 0) {
             perror("Process creation error");
@@ -167,18 +177,34 @@ int main(int argc, char *argv[]) {
     }
     fclose(file);
 
+    // --- RAYLIB STAGE AND INTERFACE INITIALIZATION ---
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Mansion Multi-Process Graph Simulation");
     SetTargetFPS(60);
 
     Vector2 positions[MAX_NODES];
     calculatePositions(&graph, positions);
 
-    Texture2D background = LoadTexture("mansion.png");
+    // Load as a safe CPU-side image structure first to assert asset validity
+    Image img = LoadImage("mansion.png");
+    Texture2D background = { 0 };
 
+    if (img.data != NULL) {
+        // Only safely unpack to GPU memory space if structural data pointer checks out
+        background = LoadTextureFromImage(img);
+        UnloadImage(img); // Free local system RAM allocation right away
+        printf("[Raylib Engine] Successfully mapped mansion.png into VRAM!\n");
+    } else {
+        printf("[Raylib Warning] mansion.png unreadable or missing. Using fallback canvas layout.\n");
+    }
+
+    // Main Engine Frame Pipeline Loop
     while (!WindowShouldClose()) {
+
+        // Dynamic position interpolation calculations loop
         for (int i = 0; i < travelerCount; i++) {
             updateAnimation(&travelers[i], &graph, positions);
 
+            // Reclaim system assets securely when processes finish routes
             if (travelers[i].arrived && travelers[i].childPid > 0) {
                 kill(travelers[i].childPid, SIGKILL);
                 waitpid(travelers[i].childPid, NULL, 0);
@@ -198,19 +224,22 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        // Frame Drawing Layers Render Pipe
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
+        // SECURE BOUNDS CHECK: Protect execution from unallocated vector address jumps
         if (background.id > 0) {
             DrawTexturePro(
                 background,
-                (Rectangle){ 0, 0, background.width, background.height },
+                (Rectangle){ 0, 0, (float)background.width, (float)background.height },
                 (Rectangle){ 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT },
                 (Vector2){ 0, 0 }, 0.0f,
-                CLITERAL(Color){ 215, 215, 215, 255 }
+                CLITERAL(Color){ 220, 220, 220, 255 }
             );
         }
 
+        // Overlay layout geometries and custom vector threads securely on top
         drawGraph(&graph, positions);
 
         for (int i = 0; i < travelerCount; i++) {
@@ -222,7 +251,11 @@ int main(int argc, char *argv[]) {
         EndDrawing();
     }
 
-    UnloadTexture(background);
+    // Clean up VRAM bindings smoothly at application end
+    if (background.id > 0) {
+        UnloadTexture(background);
+    }
+
     CleanUpChildren();
     CloseWindow();
 

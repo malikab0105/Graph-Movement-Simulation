@@ -1,18 +1,15 @@
-
-#ifndef GRAPH_MOVEMENT_SIMULATION_DRAW_H
-#define GRAPH_MOVEMENT_SIMULATION_DRAW_H
+#ifndef DRAW_H
+#define DRAW_H
 
 #include "raylib.h"
 #include "graph.h"
 #include <math.h>
-#include <stdio.h>
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
-#define NODE_RADIUS 20
 
-void calculatePositions(Graph *g, Vector2 *positions);
 void drawGraph(Graph *g, Vector2 *positions);
-void drawArrow(Vector2 start, Vector2 end, Color color);
+void drawArrowHead(Vector2 tip, float angle, Color color);
+void calculatePositions(Graph *g, Vector2 *positions);
 
-#endif //GRAPH_MOVEMENT_SIMULATION_DRAW_H
+#endif

@@ -2,72 +2,122 @@
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
-#define RADIUS 200
-#define NODE_RADIUS 20
+#define NODE_RADIUS 24
+
+// Helper function to calculate a point on a quadratic Bezier curve
+Vector2 GetBezierPoint(Vector2 start, Vector2 control, Vector2 end, float t) {
+    float u = 1.0f - t;
+    Vector2 point;
+    point.x = u * u * start.x + 2.0f * u * t * control.x + t * t * end.x;
+    point.y = u * u * start.y + 2.0f * u * t * control.y + t * t * end.y;
+    return point;
+}
 
 void drawGraph(Graph *g, Vector2 *positions) {
-    // 1. Render all Edges (Directed Hallways)
+    // LAYER 1: Draw Curved Corridors and Directional Anchors
     for (int i = 0; i < g->node; i++) {
         for (int j = 0; j < g->node; j++) {
             if (g->matrix[i][j] != 0) {
-                float angle = atan2(positions[j].y - positions[i].y,
-                                    positions[j].x - positions[i].x);
+                Vector2 start = positions[i];
+                Vector2 end = positions[j];
 
-                Vector2 adjustedEnd = {
-                    positions[j].x - NODE_RADIUS * cos(angle),
-                    positions[j].y - NODE_RADIUS * sin(angle)
+                // Calculate the direct midpoint
+                Vector2 mid = { (start.x + end.x) / 2.0f, (start.y + end.y) / 2.0f };
+
+                // Calculate a perpendicular vector to push the control point outward
+                float dx = end.x - start.x;
+                float dy = end.y - start.y;
+                float len = sqrtf(dx * dx + dy * dy);
+
+                // Create a dynamic control point to bow the road smoothly outward
+                float curvature = 35.0f; // Adjust this value to control the curve depth
+                Vector2 control = {
+                    mid.x - (dy / len) * curvature,
+                    mid.y + (dx / len) * curvature
                 };
-                drawArrow(positions[i], adjustedEnd, DARKGRAY);
 
-                int midX = (positions[i].x + positions[j].x) / 2;
-                int midY = (positions[i].y + positions[j].y) / 2;
+                // Approximate the curve using 16 linear steps
+                Vector2 prevPoint = start;
+                for (int s = 1; s <= 16; s++) {
+                    float t = (float)s / 16.0f;
+                    Vector2 currPoint = GetBezierPoint(start, control, end, t);
 
-                char weight[16];
-                snprintf(weight, sizeof(weight), "%d", g->matrix[i][j]);
-                DrawText(weight, midX + 5, midY - 10, 15, RED);
+                    // Don't draw inside the room circles
+                    if (CheckCollisionPointCircle(currPoint, start, NODE_RADIUS) == false &&
+                        CheckCollisionPointCircle(currPoint, end, NODE_RADIUS) == false) {
+
+                        DrawLineEx(prevPoint, currPoint, 5.0f, LIGHTGRAY);
+                        DrawLineEx(prevPoint, currPoint, 1.5f, RAYWHITE); // Carpet trim
+                    }
+                    prevPoint = currPoint;
+                }
+
+                // Calculate arrowhead positioning at the 85% point of the curve threshold
+                Vector2 arrowTip = GetBezierPoint(start, control, end, 0.88f);
+                Vector2 arrowBase = GetBezierPoint(start, control, end, 0.82f);
+                float angle = atan2f(arrowTip.y - arrowBase.y, arrowTip.x - arrowBase.x);
+                drawArrowHead(arrowTip, angle, DARKGRAY);
+
+                // Place the weight badge directly on the apex peak of the curve (t = 0.5)
+                Vector2 badgePos = GetBezierPoint(start, control, end, 0.5f);
+
+                DrawCircle(badgePos.x + 1, badgePos.y + 1, 13, BLACK); // Drop Shadow
+                DrawCircle(badgePos.x, badgePos.y, 11, RAYWHITE);       // Isolation mask
+                DrawCircle(badgePos.x, badgePos.y, 9, GOLD);           // Badge center
+                DrawCircleLines(badgePos.x, badgePos.y, 9, MAROON);
+
+                char weightText[16];
+                snprintf(weightText, sizeof(weightText), "%d", g->matrix[i][j]);
+                int textWidth = MeasureText(weightText, 11);
+                DrawText(weightText, badgePos.x - textWidth / 2, badgePos.y - 5, 11, MAROON);
             }
         }
     }
 
-    // 2. Render all Nodes (Rooms)
+    // LAYER 2: Draw Clean, Non-overlapping Rooms
     for (int i = 0; i < g->node; i++) {
-        DrawCircle(positions[i].x, positions[i].y, NODE_RADIUS, BLUE);
-        DrawCircleLines(positions[i].x, positions[i].y, NODE_RADIUS, DARKBLUE);
+        DrawCircle(positions[i].x + 2, positions[i].y + 2, NODE_RADIUS, CLITERAL(Color){ 0, 0, 0, 35 });
+        DrawCircle(positions[i].x, positions[i].y, NODE_RADIUS, BEIGE);
+        DrawCircleLines(positions[i].x, positions[i].y, NODE_RADIUS, DARKBROWN);
 
+        // Room ID
         char label[16];
         snprintf(label, sizeof(label), "%d", i);
-        int numWidth = MeasureText(label, 12);
-        DrawText(label, positions[i].x - numWidth / 2, positions[i].y - 14, 12, BLACK);
+        int numWidth = MeasureText(label, 11);
+        DrawText(label, positions[i].x - numWidth / 2, positions[i].y - 5, 11, MAROON);
 
-        int textWidth = MeasureText(rooms[i], 9);
-        DrawText(rooms[i], positions[i].x - textWidth / 2, positions[i].y + 2, 9, BLACK);
+        // Clean label padding underneath the node bounds
+        int textWidth = MeasureText(rooms[i], 10);
+        DrawText(rooms[i], positions[i].x - textWidth / 2, positions[i].y + NODE_RADIUS + 6, 10, BLACK);
     }
 }
 
-void drawArrow(Vector2 start, Vector2 end, Color color) {
-    DrawLine(start.x, start.y, end.x, end.y, color);
+void drawArrowHead(Vector2 tip, float angle, Color color) {
+    float arrowLength = 13.0f;
+    float arrowWidth = 0.45f;
 
-    float angle = atan2(end.y - start.y, end.x - start.x);
-    float arrowSize = 10.0f;
-    DrawLine(end.x, end.y,
-             end.x - arrowSize * cos(angle - 0.5f),
-             end.y - arrowSize * sin(angle - 0.5f),
-             color);
+    Vector2 leftWing = {
+        tip.x - arrowLength * cosf(angle - arrowWidth),
+        tip.y - arrowLength * sinf(angle - arrowWidth)
+    };
+    Vector2 rightWing = {
+        tip.x - arrowLength * cosf(angle + arrowWidth),
+        tip.y - arrowLength * sinf(angle + arrowWidth)
+    };
 
-    DrawLine(end.x, end.y,
-             end.x - arrowSize * cos(angle + 0.5f),
-             end.y - arrowSize * sin(angle + 0.5f),
-             color);
+    DrawLineEx(tip, leftWing, 2.5f, color);
+    DrawLineEx(tip, rightWing, 2.5f, color);
+    DrawLineEx(leftWing, rightWing, 1.5f, color);
 }
 
 void calculatePositions(Graph *g, Vector2 *positions) {
     float centerX = WINDOW_WIDTH / 2;
-    float centerY = WINDOW_HEIGHT / 2;
-    float radius = 200;
+    float centerY = WINDOW_HEIGHT / 2 - 20; // Shift up slightly to leave space for button
+    float radius = 220.0f;                  // Expanded layout circle radius
 
     for (int i = 0; i < g->node; i++) {
-        float angle = i * (-2 * PI / g->node);
-        positions[i].x = centerX + radius * cos(angle);
-        positions[i].y = centerY + radius * sin(angle);
+        float angle = i * (-2.0f * PI / g->node);
+        positions[i].x = centerX + radius * cosf(angle);
+        positions[i].y = centerY + radius * sinf(angle);
     }
 }
