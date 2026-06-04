@@ -34,8 +34,8 @@ void drawGraph(Graph *g, Vector2 *positions) {
                 //weight
                 int midX = (position[i].x + position[j].x) / 2;
                 int midY = (position[i].y + position[j].y) / 2;
-                char weight[10];
-                sprintf(weight, "%d", g->matrix[i][j]);
+                char weight[12];
+                snprintf(weight, sizeof(weight), "%d", g->matrix[i][j]);
                 DrawText(weight, midX + 5, midY - 10, 15, RED);
             }
         }
@@ -46,8 +46,8 @@ void drawGraph(Graph *g, Vector2 *positions) {
         DrawCircle(positions[i].x, positions[i].y, NODE_RADIUS, BLUE);
         DrawCircleLines(positions[i].x, positions[i].y, NODE_RADIUS, DARKBLUE);
 
-        char label[10];
-        sprintf(label, "%d", i);
+        char label[12];
+        snprintf(label, sizeof(label), "%d", i);
         int numWidth = MeasureText(label, 12);
         DrawText(label, positions[i].x - numWidth / 2, positions[i].y - 14, 12, BLACK);
 

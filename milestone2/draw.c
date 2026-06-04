@@ -34,8 +34,8 @@ void drawGraph (Graph *g) {
                 //weight
                 int midX = (position[i].x + position[j].x) / 2;
                 int midY = (position[i].y + position[j].y) / 2;
-                char weight[10];
-                sprintf(weight, "%d", g->matrix[i][j]);
+                char weight[12];
+                snprintf(weight, sizeof(weight), "%d", g->matrix[i][j]);
                 DrawText(weight, midX + 5, midY - 10, 15, RED);
             }
         }
@@ -45,8 +45,8 @@ void drawGraph (Graph *g) {
     for (int i = 0; i < g->node; i++) {
         DrawCircle(position[i].x, position[i].y, NODE_RADIUS, BLUE);
 
-        char label[10];
-        sprintf(label, "%d", i);
+        char label[12];
+        snprintf(label, sizeof(label), "%d", i);
         DrawText(label, position[i].x - 5 , position[i].y - 8, 20, GREEN);
     }
 }

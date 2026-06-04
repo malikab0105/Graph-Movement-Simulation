@@ -2,6 +2,8 @@
 #ifndef GRAPH_MOVEMENT_SIMULATION_DRAW_H
 #define GRAPH_MOVEMENT_SIMULATION_DRAW_H
 
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
 #include "raylib.h"
 #include "graph.h"
 #include <math.h>
