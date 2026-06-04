@@ -53,3 +53,14 @@ make milestone3
 ```bash
 cd milestone3 && ./sim <filename with extension>
 ```
+## Milestone 4 — Concurrent Multi-Processing
+
+Multiple traveler entities navigate through the graph concurrently, each calculating its own Dijkstra shortest path. individual traveler color palettes, and full POSIX multi-process tracking where a background child process is spawned for each traveler and safely terminated via signals upon arrival. NOTE: in this commitment, the extended parsing and multi-process architecture was implemented by the team leader to scale the simulation frame loops.
+**Compile:**
+```bash
+make milestone4
+```
+**Run:**
+```bash
+cd milestone4 && ./sim <filename with extension>
+```
