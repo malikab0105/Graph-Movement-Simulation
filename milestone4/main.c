@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     calculatePositions(g, positions);
 
     // Color palette array mapping clear, separate visual markers for nodes
-    Color palette[] = { RED, GREEN, BLUE, PURPLE, GOLD, ORANGE, PINK, LIME, MAROON, MAGENTA };
+    Color palette[] = { RED, GREEN, PURPLE, GOLD, ORANGE, PINK, LIME, MAROON, MAGENTA , BROWN };
     int paletteSize = sizeof(palette) / sizeof(palette[0]);
 
     // 2. Pre-calculate the paths sequentially for all travelers BEFORE making child processes
