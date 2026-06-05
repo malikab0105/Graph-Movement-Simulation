@@ -160,8 +160,6 @@ int main(int argc, char *argv[]) {
     Vector2 positions[MAX_NODES];
     calculatePositions(g, positions);
 
-    Texture2D background = LoadTexture("mansion.png");
-
     while (!WindowShouldClose()) {
 
         // ── Update all travelers ─────────────────────────────────────────────
@@ -178,13 +176,6 @@ int main(int argc, char *argv[]) {
         // ── Draw ─────────────────────────────────────────────────────────────
         BeginDrawing();
         ClearBackground(RAYWHITE);
-
-        if (background.id > 0)
-            DrawTexturePro(background,
-                (Rectangle){0, 0, (float)background.width, (float)background.height},
-                (Rectangle){0, 0, WINDOW_WIDTH, WINDOW_HEIGHT},
-                (Vector2){0, 0}, 0.0f,
-                CLITERAL(Color){215, 215, 215, 255});
 
         drawGraph(g, positions);
 
@@ -206,7 +197,6 @@ int main(int argc, char *argv[]) {
         EndDrawing();
     }
 
-    UnloadTexture(background);
     CleanUpChildren();
     freeGraph(g);
     CloseWindow();
