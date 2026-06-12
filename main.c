@@ -236,7 +236,6 @@ int main(int argc, char *argv[]) {
     Vector2 positions[MAX_NODES];
     calculatePositions(graph, positions);
 
-    Texture2D background = LoadTexture("mansion.png");
 
     while (!WindowShouldClose()) {
 
@@ -285,15 +284,6 @@ int main(int argc, char *argv[]) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        if (background.id > 0) {
-            DrawTexturePro(
-                background,
-                (Rectangle){ 0, 0, (float)background.width, (float)background.height },
-                (Rectangle){ 0, 0, (float)WINDOW_WIDTH, (float)WINDOW_HEIGHT },
-                (Vector2){ 0, 0 }, 0.0f,
-                CLITERAL(Color){ 215, 215, 215, 255 }
-            );
-        }
 
         drawGraph(graph, positions);
 
@@ -313,9 +303,6 @@ int main(int argc, char *argv[]) {
         EndDrawing();
     }
 
-    if (background.id > 0) {
-        UnloadTexture(background);
-    }
 
     // ============================================================================
     // MILESTONE 5: DESCRIPTOR RESOURCE CLEANUP
