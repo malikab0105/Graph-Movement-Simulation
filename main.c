@@ -317,8 +317,11 @@ int main(int argc, char *argv[]) {
         UnloadTexture(background);
     }
 
+    // ============================================================================
+    // MILESTONE 5: DESCRIPTOR RESOURCE CLEANUP
+    // ============================================================================
     close(master_fifo_fd);
-    unlink(FIFO_CHANNEL); // Clean filesystem tracking records cleanly
+    unlink(FIFO_CHANNEL);
 
     CleanUpChildren();
     CloseWindow();
