@@ -1,6 +1,17 @@
 #ifndef GRAPH_MOVEMENT_SIMULATION_GRAPH_H
 #define GRAPH_MOVEMENT_SIMULATION_GRAPH_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h> // Added for mkfifo
+#include <sys/wait.h>
+#include <signal.h>
+#include "raylib.h"
+
+
 typedef struct {
     int src;
     int dst;
