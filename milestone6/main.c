@@ -19,11 +19,21 @@
 
 #define MAX_TRAVELERS 15
 #define MAX_NODES     30
+#define MAX_QUEUE     20
 
 Graph *graph = NULL;
 AnimationState visual_travelers[MAX_TRAVELERS];
 TravelerInfo travelers[MAX_TRAVELERS];
 int numTravelers = 0;
+
+typedef struct {
+    IPCMessage queue[MAX_QUEUE];
+    int head;
+    int tail;
+    int count;
+} TravelerQueue;
+
+TravelerQueue msgQueues[MAX_TRAVELERS];
 
 void CleanUpChildren() {
     for (int i = 0; i < numTravelers; i++) {
@@ -124,7 +134,6 @@ int main(int argc, char *argv[]) {
         }
         else if (pid == 0) {
             // CHILD PROCESS
-
             int route[MAX_NODES];
             int routeLength = dijkstra(graph, travelers[i].src, travelers[i].dst, route);
 
@@ -188,7 +197,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // 7. Open FIFO for reading (non-blocking)
+    // 7. Initialize Message Queues
+    memset(msgQueues, 0, sizeof(msgQueues));
+
+    // 8. Open FIFO for reading (non-blocking)
     int master_fifo_fd = open(FIFO_CHANNEL, O_RDONLY | O_NONBLOCK);
     if (master_fifo_fd < 0) {
         perror("Failed to open FIFO for reading");
@@ -210,44 +222,67 @@ int main(int argc, char *argv[]) {
 
     while (!WindowShouldClose()) {
 
-        // Poll FIFO for messages from children
+        // 1. Drain the FIFO quickly and safely stash messages in the Queues
         IPCMessage receivedMsg;
         while (read(master_fifo_fd, &receivedMsg, sizeof(IPCMessage)) == sizeof(IPCMessage)) {
             int tId = receivedMsg.travelerId;
+            if (msgQueues[tId].count < MAX_QUEUE) {
+                msgQueues[tId].queue[msgQueues[tId].tail] = receivedMsg;
+                msgQueues[tId].tail = (msgQueues[tId].tail + 1) % MAX_QUEUE;
+                msgQueues[tId].count++;
+            }
+        }
 
-            if (receivedMsg.type == MSG_WAITING) {
-                visual_travelers[tId].isWaiting = true;
+        // 2. FIXED: Process Queues inside a loop to dissolve instantaneous messages in 1 frame
+        for (int i = 0; i < numTravelers; i++) {
+            while (msgQueues[i].count > 0) {
+                bool readyForNext = false;
 
-            } else if (receivedMsg.type == MSG_FINISHED) {
-                visual_travelers[tId].path[0]    = receivedMsg.current_node;
-                visual_travelers[tId].path[1]    = receivedMsg.current_node;
-                visual_travelers[tId].pathLength  = 1;
-                visual_travelers[tId].progress    = 0.0f;
-                visual_travelers[tId].isWaiting   = false;
-                visual_travelers[tId].arrived     = true;
-                printf("[PID=%d] arrived at node %d | DESTINATION\n",
-                       receivedMsg.pid, receivedMsg.current_node);
-                printf("[PID=%d] finished\n", receivedMsg.pid);
-                fflush(stdout);
+                // Check if the visual cat is idle or has completed its current traversal
+                if (visual_travelers[i].pathLength <= 1 || (visual_travelers[i].path[0] == visual_travelers[i].path[1])) {
+                    readyForNext = true; // Not moving / at initialization
+                } else if (visual_travelers[i].progress >= visual_travelers[i].totalDuration && visual_travelers[i].waitTimer <= 0.0f) {
+                    readyForNext = true; // Reached the end of the edge and finished waiting
+                }
 
-            } else {
-                // MSG_ARRIVED
-                if (receivedMsg.current_node >= 0 && receivedMsg.current_node < graph->node &&
-                    receivedMsg.next_node    >= 0 && receivedMsg.next_node    < graph->node) {
+                // If the cat is currently busy sliding down an edge corridor, break and wait
+                if (!readyForNext) {
+                    break;
+                }
 
-                    visual_travelers[tId].path[0]      = receivedMsg.current_node;
-                    visual_travelers[tId].path[1]      = receivedMsg.next_node;
-                    visual_travelers[tId].pathLength    = 2;
-                    visual_travelers[tId].currentNode   = 0;
-                    visual_travelers[tId].progress      = 0.0f;
-                    visual_travelers[tId].waitTimer     = 1.0f;
-                    visual_travelers[tId].isWaiting     = false;
-                    visual_travelers[tId].totalDuration =
-                        (float)graph->matrix[receivedMsg.current_node][receivedMsg.next_node] * 0.5f;
+                IPCMessage msg = msgQueues[i].queue[msgQueues[i].head];
+                msgQueues[i].head = (msgQueues[i].head + 1) % MAX_QUEUE;
+                msgQueues[i].count--;
 
-                    printf("[PID=%d] arrived at node %d | next node: %d\n",
-                           receivedMsg.pid, receivedMsg.current_node, receivedMsg.next_node);
+                if (msg.type == MSG_WAITING) {
+                    visual_travelers[i].isWaiting = true;
+                } else if (msg.type == MSG_FINISHED) {
+                    visual_travelers[i].path[0]     = msg.current_node;
+                    visual_travelers[i].path[1]     = msg.current_node;
+                    visual_travelers[i].pathLength  = 1;
+                    visual_travelers[i].progress    = 0.0f;
+                    visual_travelers[i].isWaiting   = false;
+                    visual_travelers[i].arrived     = true;
+                    printf("[PID=%d] arrived at node %d | DESTINATION\n", msg.pid, msg.current_node);
+                    printf("[PID=%d] finished\n", msg.pid);
                     fflush(stdout);
+                } else {
+                    // MSG_ARRIVED
+                    if (msg.current_node >= 0 && msg.current_node < graph->node &&
+                        msg.next_node    >= 0 && msg.next_node    < graph->node) {
+
+                        visual_travelers[i].path[0]       = msg.current_node;
+                        visual_travelers[i].path[1]       = msg.next_node;
+                        visual_travelers[i].pathLength    = 2;
+                        visual_travelers[i].currentNode   = 0;
+                        visual_travelers[i].progress      = 0.0f;
+                        visual_travelers[i].waitTimer     = 1.0f;
+                        visual_travelers[i].isWaiting     = false;
+                        visual_travelers[i].totalDuration = (float)graph->matrix[msg.current_node][msg.next_node] * 0.5f;
+
+                        printf("[PID=%d] arrived at node %d | next node: %d\n", msg.pid, msg.current_node, msg.next_node);
+                        fflush(stdout);
+                    }
                 }
             }
         }
