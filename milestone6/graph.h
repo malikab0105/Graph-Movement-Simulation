@@ -33,14 +33,12 @@ int dijkstra(Graph *g, int src, int dst, int *path);
 extern char rooms[][48];
 extern int  numRooms;
 
-/* Message types sent from child to parent via FIFO */
 typedef enum {
-    MSG_WAITING,   /* Child is blocked outside a node - show red ring */
-    MSG_ARRIVED,   /* Child acquired the lock and entered the node     */
-    MSG_FINISHED   /* Child reached its final destination              */
+    MSG_WAITING,
+    MSG_ARRIVED,
+    MSG_FINISHED
 } MessageType;
 
-/* IPC message struct */
 typedef struct {
     pid_t       pid;
     int         travelerId;

@@ -11,7 +11,7 @@ AnimationState initAnimation(int *path, int pathLength, Color customColor, pid_t
     anim.pathLength    = pathLength;
     anim.currentNode   = 0;
     anim.progress      = 0.0f;
-    anim.totalDuration = 0.0f;
+    anim.totalDuration = 1.0f;
     anim.isPlaying     = false;
     anim.isWaiting     = false;
     anim.waitTimer     = 0.0f;
@@ -28,7 +28,6 @@ void updateAnimation(AnimationState *anim, Graph *g, Vector2 *positions) {
 
     float delta = GetFrameTime();
 
-    /* Count down 1-second node occupancy before moving along edge */
     if (anim->waitTimer > 0.0f) {
         anim->waitTimer -= delta;
         if (anim->waitTimer < 0.0f) anim->waitTimer = 0.0f;
@@ -38,14 +37,12 @@ void updateAnimation(AnimationState *anim, Graph *g, Vector2 *positions) {
     int from = anim->path[0];
     int to   = anim->path[1];
 
-    /* Compute edge duration once at start of each segment */
     if (anim->progress == 0.0f && from != to) {
         anim->totalDuration = (float)g->matrix[from][to] * 0.5f;
         if (anim->totalDuration <= 0.0f)
             anim->totalDuration = 0.5f;
     }
 
-    /* Advance progress smoothly */
     if (anim->progress < anim->totalDuration) {
         anim->progress += delta;
         if (anim->progress > anim->totalDuration)
@@ -63,7 +60,6 @@ void drawAnimation(AnimationState *anim, Vector2 *positions, Graph *g) {
         catPos = positions[to];
 
     } else if (anim->isWaiting) {
-        /* Cat is blocked — hold it just outside the target node */
         float dx = positions[to].x - positions[from].x;
         float dy = positions[to].y - positions[from].y;
         float distance = sqrtf(dx * dx + dy * dy);
@@ -75,7 +71,6 @@ void drawAnimation(AnimationState *anim, Vector2 *positions, Graph *g) {
             catPos = positions[from];
         }
 
-        /* Red ring shows blocked/waiting state */
         DrawRing(catPos, 18, 22, 0, 360, 36, RED);
 
     } else {
@@ -87,14 +82,14 @@ void drawAnimation(AnimationState *anim, Vector2 *positions, Graph *g) {
         catPos.y = positions[from].y + t * (positions[to].y - positions[from].y);
     }
 
-    /* Left ear */
+    // Left ear
     DrawTriangle(
         (Vector2){catPos.x - 2,  catPos.y - 10},
         (Vector2){catPos.x - 8,  catPos.y - 35},
         (Vector2){catPos.x - 15, catPos.y - 10},
         DARKBROWN
     );
-    /* Right ear */
+    // Right ear
     DrawTriangle(
         (Vector2){catPos.x + 15, catPos.y - 10},
         (Vector2){catPos.x + 8,  catPos.y - 35},
@@ -102,14 +97,14 @@ void drawAnimation(AnimationState *anim, Vector2 *positions, Graph *g) {
         DARKBROWN
     );
 
-    /* Head */
+    // Head
     DrawCircle((int)catPos.x, (int)catPos.y, 15, anim->color);
 
-    /* Eyes */
+    // Eyes
     DrawCircle((int)catPos.x - 5, (int)catPos.y - 4, 3, BLACK);
     DrawCircle((int)catPos.x + 5, (int)catPos.y - 4, 3, BLACK);
 
-    /* Mouth */
+    // Mouth
     DrawLine((int)catPos.x - 3, (int)catPos.y + 4,
              (int)catPos.x,     (int)catPos.y + 6, BLACK);
     DrawLine((int)catPos.x,     (int)catPos.y + 6,

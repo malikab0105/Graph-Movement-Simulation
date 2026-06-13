@@ -107,29 +107,15 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // 6. Parent opens FIFO for reading BEFORE forking
-    // This is critical — children open O_WRONLY which blocks until a reader exists.
-    // If parent opens after fork, children block on open() forever = deadlock.
-    int master_fifo_fd = open(FIFO_CHANNEL, O_RDONLY | O_NONBLOCK);
-    if (master_fifo_fd < 0) {
-        perror("Failed to open FIFO for reading");
-        unlink(FIFO_CHANNEL);
-        for (int i = 0; i < graph->node; i++) sem_destroy(&node_locks[i]);
-        munmap(node_locks, graph->node * sizeof(sem_t));
-        freeGraph(graph);
-        return 1;
-    }
-
     Color defaultColors[] = { BLUE, GREEN, ORANGE, PURPLE, PINK, GOLD };
 
-    // 7. Fork all child processes
+    // 6. Fork all child processes
     for (int i = 0; i < numTravelers; i++) {
         pid_t pid = fork();
 
         if (pid < 0) {
             perror("Fork error");
             CleanUpChildren();
-            close(master_fifo_fd);
             unlink(FIFO_CHANNEL);
             for (int k = 0; k < graph->node; k++) sem_destroy(&node_locks[k]);
             munmap(node_locks, graph->node * sizeof(sem_t));
@@ -137,15 +123,11 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         else if (pid == 0) {
-            // ── CHILD PROCESS ──────────────────────────────────────────────────
-
-            // Child doesn't need the read end
-            close(master_fifo_fd);
+            // CHILD PROCESS
 
             int route[MAX_NODES];
             int routeLength = dijkstra(graph, travelers[i].src, travelers[i].dst, route);
 
-            // Open FIFO for writing — succeeds immediately since parent already opened read end
             int fifo_fd = open(FIFO_CHANNEL, O_WRONLY);
             if (fifo_fd < 0) {
                 freeGraph(graph);
@@ -199,11 +181,23 @@ int main(int argc, char *argv[]) {
             exit(0);
         }
         else {
-            // ── PARENT PROCESS ────────────────────────────────────────────────
+            // PARENT PROCESS
             int initialPath[2] = { travelers[i].src, travelers[i].src };
             visual_travelers[i] = initAnimation(initialPath, 2, defaultColors[i % 6], pid);
             visual_travelers[i].isPlaying = false;
         }
+    }
+
+    // 7. Open FIFO for reading (non-blocking)
+    int master_fifo_fd = open(FIFO_CHANNEL, O_RDONLY | O_NONBLOCK);
+    if (master_fifo_fd < 0) {
+        perror("Failed to open FIFO for reading");
+        CleanUpChildren();
+        unlink(FIFO_CHANNEL);
+        for (int i = 0; i < graph->node; i++) sem_destroy(&node_locks[i]);
+        munmap(node_locks, graph->node * sizeof(sem_t));
+        freeGraph(graph);
+        return 1;
     }
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Mansion Multi-Process Graph Simulation");
@@ -214,80 +208,51 @@ int main(int argc, char *argv[]) {
 
     bool globalPlaying = false;
 
-    // Pending message buffer — holds latest unprocessed message per traveler
-    IPCMessage pendingMessages[MAX_TRAVELERS];
-    bool hasPendingMessage[MAX_TRAVELERS];
-    for (int i = 0; i < MAX_TRAVELERS; i++) hasPendingMessage[i] = false;
-
     while (!WindowShouldClose()) {
 
-        // ── Always drain FIFO to prevent pipe from filling up ─────────────────
+        // Poll FIFO for messages from children
         IPCMessage receivedMsg;
         while (read(master_fifo_fd, &receivedMsg, sizeof(IPCMessage)) == sizeof(IPCMessage)) {
             int tId = receivedMsg.travelerId;
 
             if (receivedMsg.type == MSG_WAITING) {
-                // Apply immediately — just sets red ring flag, no position change
                 visual_travelers[tId].isWaiting = true;
-            } else {
-                // Store as pending — only apply when visual animation is ready
-                pendingMessages[tId] = receivedMsg;
-                hasPendingMessage[tId] = true;
-            }
-        }
 
-        // ── Apply pending messages only when current segment is visually done ──
-        for (int i = 0; i < numTravelers; i++) {
-            if (!hasPendingMessage[i] || visual_travelers[i].arrived) continue;
-
-            // Animation is ready for next message when:
-            // - progress has reached totalDuration (finished crossing edge), AND
-            // - waitTimer has expired (finished waiting in node)
-            // OR it's the very first message (progress=0, waitTimer=0, isWaiting could be true)
-            bool edgeDone  = (visual_travelers[i].progress  >= visual_travelers[i].totalDuration);
-            bool waitDone  = (visual_travelers[i].waitTimer <= 0.0f);
-            bool readyForNext = (edgeDone && waitDone);
-
-            if (!readyForNext) continue;
-
-            IPCMessage msg = pendingMessages[i];
-            hasPendingMessage[i] = false;
-
-            if (msg.type == MSG_FINISHED) {
-                visual_travelers[i].path[0]    = msg.current_node;
-                visual_travelers[i].path[1]    = msg.current_node;
-                visual_travelers[i].pathLength  = 1;
-                visual_travelers[i].progress    = 0.0f;
-                visual_travelers[i].waitTimer   = 0.0f;
-                visual_travelers[i].isWaiting   = false;
-                visual_travelers[i].arrived     = true;
+            } else if (receivedMsg.type == MSG_FINISHED) {
+                visual_travelers[tId].path[0]    = receivedMsg.current_node;
+                visual_travelers[tId].path[1]    = receivedMsg.current_node;
+                visual_travelers[tId].pathLength  = 1;
+                visual_travelers[tId].progress    = 0.0f;
+                visual_travelers[tId].isWaiting   = false;
+                visual_travelers[tId].arrived     = true;
                 printf("[PID=%d] arrived at node %d | DESTINATION\n",
-                       msg.pid, msg.current_node);
-                printf("[PID=%d] finished\n", msg.pid);
+                       receivedMsg.pid, receivedMsg.current_node);
+                printf("[PID=%d] finished\n", receivedMsg.pid);
                 fflush(stdout);
 
-            } else if (msg.type == MSG_ARRIVED) {
-                if (msg.current_node >= 0 && msg.current_node < graph->node &&
-                    msg.next_node    >= 0 && msg.next_node    < graph->node) {
+            } else {
+                // MSG_ARRIVED
+                if (receivedMsg.current_node >= 0 && receivedMsg.current_node < graph->node &&
+                    receivedMsg.next_node    >= 0 && receivedMsg.next_node    < graph->node) {
 
-                    visual_travelers[i].path[0]      = msg.current_node;
-                    visual_travelers[i].path[1]      = msg.next_node;
-                    visual_travelers[i].pathLength    = 2;
-                    visual_travelers[i].currentNode   = 0;
-                    visual_travelers[i].progress      = 0.0f;
-                    visual_travelers[i].waitTimer     = 1.0f;
-                    visual_travelers[i].isWaiting     = false;
-                    visual_travelers[i].totalDuration =
-                        (float)graph->matrix[msg.current_node][msg.next_node] * 0.5f;
+                    visual_travelers[tId].path[0]      = receivedMsg.current_node;
+                    visual_travelers[tId].path[1]      = receivedMsg.next_node;
+                    visual_travelers[tId].pathLength    = 2;
+                    visual_travelers[tId].currentNode   = 0;
+                    visual_travelers[tId].progress      = 0.0f;
+                    visual_travelers[tId].waitTimer     = 1.0f;
+                    visual_travelers[tId].isWaiting     = false;
+                    visual_travelers[tId].totalDuration =
+                        (float)graph->matrix[receivedMsg.current_node][receivedMsg.next_node] * 0.5f;
 
                     printf("[PID=%d] arrived at node %d | next node: %d\n",
-                           msg.pid, msg.current_node, msg.next_node);
+                           receivedMsg.pid, receivedMsg.current_node, receivedMsg.next_node);
                     fflush(stdout);
                 }
             }
         }
 
-        // ── Play / Stop button ────────────────────────────────────────────────
+        // Play / Stop button
         Rectangle buttonRec = { 340, 550, 120, 40 };
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Vector2 mouse = GetMousePosition();
@@ -316,7 +281,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // ── Draw ──────────────────────────────────────────────────────────────
+        // Draw
         BeginDrawing();
         ClearBackground(RAYWHITE);
         drawGraph(graph, positions);
@@ -335,7 +300,7 @@ int main(int argc, char *argv[]) {
         EndDrawing();
     }
 
-    // ── Cleanup ───────────────────────────────────────────────────────────────
+    // Cleanup
     close(master_fifo_fd);
     unlink(FIFO_CHANNEL);
     CleanUpChildren();
