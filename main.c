@@ -55,16 +55,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    char line[256];
     int nodesCount = 0;
-    int edgesCount = 0;
-
-    // 1. Parse "n m" header (skip blank/comment lines)
-    while (fgets(line, sizeof(line), file)) {
-        if (line[0] == '\n' || line[0] == '\r' || line[0] == '#') continue;
-        if (sscanf(line, "%d %d", &nodesCount, &edgesCount) == 2) {
-            break;
-        }
+    if (fscanf(file, "%d", &nodesCount) != 1) {
+        fclose(file);
+        return 1;
     }
 
     graph = createGraph(nodesCount);
@@ -74,28 +68,37 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // 2. Parse the m edge lines: "u v w"
-    int parsedEdges = 0;
-    while (parsedEdges < edgesCount && fgets(line, sizeof(line), file)) {
-        if (line[0] == '\n' || line[0] == '\r' || line[0] == '#') continue;
+    for (int i = 0; i < graph->node; i++) {
+        int index;
+        if (fscanf(file, "%d", &index) != 1) {
+            freeGraph(graph);
+            fclose(file);
+            return 1;
+        }
 
-        int u, v, w;
-        if (sscanf(line, "%d %d %d", &u, &v, &w) == 3) {
-            if (u < graph->node && v < graph->node) {
-                addEdge(graph, u, v, w);
-                parsedEdges++;
+        int nextChar = fgetc(file);
+        if (nextChar == ' ' && i < numRooms) {
+            if (fgets(rooms[i], 48, file) != NULL) {
+                rooms[i][strcspn(rooms[i], "\r\n")] = 0;
+            }
+        } else {
+            if (nextChar != '\n' && nextChar != EOF) {
+                while ((nextChar = fgetc(file)) != '\n' && nextChar != EOF);
             }
         }
     }
 
-    // 3. Parse traveler count
-    while (fgets(line, sizeof(line), file)) {
-        if (line[0] == '\n' || line[0] == '\r' || line[0] == '#') continue;
-        if (sscanf(line, "%d", &travelerCount) == 1) {
-            break;
+    int u, v, w;
+    while (fscanf(file, "%d", &u) == 1 && u != -1) {
+        if (fscanf(file, "%d %d", &v, &w) != 2) break;
+        if (u < graph->node && v < graph->node) {
+            addEdge(graph, u, v, w);
         }
     }
 
+    if (fscanf(file, "%d", &travelerCount) != 1) {
+        travelerCount = 0;
+    }
     if (travelerCount > MAX_TRAVELERS) {
         travelerCount = MAX_TRAVELERS;
     }
@@ -118,23 +121,13 @@ int main(int argc, char *argv[]) {
     int dst_nodes[MAX_TRAVELERS];
     Color colors[MAX_TRAVELERS];
 
-    int travelersParsed = 0;
-    while (travelersParsed < travelerCount && fgets(line, sizeof(line), file)) {
-        if (line[0] == '\n' || line[0] == '\r' || line[0] == '#') continue;
-
+    for (int i = 0; i < travelerCount; i++) {
         char colorName[32];
-        int tokens = sscanf(line, "%d %d %s", &src_nodes[travelersParsed], &dst_nodes[travelersParsed], colorName);
-        if (tokens >= 2) {
-            if (tokens == 3) {
-                colors[travelersParsed] = ParseColorString(colorName);
-            } else {
-                Color defaultColors[] = { BLUE, GREEN, ORANGE, PURPLE, PINK, GOLD };
-                colors[travelersParsed] = defaultColors[travelersParsed % 6];
-            }
-            travelersParsed++;
+        if (fscanf(file, "%d %d %s", &src_nodes[i], &dst_nodes[i], colorName) != 3) {
+            break;
         }
+        colors[i] = ParseColorString(colorName);
     }
-    travelerCount = travelersParsed;
 
     fclose(file);
 
@@ -253,26 +246,16 @@ int main(int argc, char *argv[]) {
         while (read(master_fifo_fd, &receivedMsg, sizeof(IPCMessage)) == sizeof(IPCMessage)) {
             int tId = receivedMsg.travelerId;
 
+            // Update localized path position parameters
+            travelers[tId].path[0] = receivedMsg.current_node;
+
             if (receivedMsg.is_finished) {
-                // Snap to the final node and mark this traveler as arrived
-                travelers[tId].path[0] = receivedMsg.current_node;
-                travelers[tId].pathLength = 1;
-                travelers[tId].currentNode = 0;
-                travelers[tId].progress = 0.0f;
-                travelers[tId].isWaiting = false;
                 travelers[tId].arrived = true;
                 printf("[PID=%d] arrived at node %d | DESTINATION\n", receivedMsg.pid, receivedMsg.current_node);
                 printf("[PID=%d] finished\n", receivedMsg.pid);
                 fflush(stdout);
             } else {
-                // Set up a fresh 2-node segment so updateAnimation/drawAnimation
-                // smoothly interpolate from current_node -> next_node, just like milestone4
-                travelers[tId].path[0] = receivedMsg.current_node;
                 travelers[tId].path[1] = receivedMsg.next_node;
-                travelers[tId].pathLength = 2;
-                travelers[tId].currentNode = 0;
-                travelers[tId].progress = 0.0f;
-                travelers[tId].isWaiting = false;
                 printf("[PID=%d] arrived at node %d | next node: %d\n", receivedMsg.pid, receivedMsg.current_node, receivedMsg.next_node);
                 fflush(stdout);
             }
@@ -304,16 +287,15 @@ int main(int argc, char *argv[]) {
 
         drawGraph(graph, positions);
 
-        // Smoothly interpolate and render each traveler using the same
-        // animation model as milestone4 (cat sprite + linear interpolation)
+        // Render traveler vectors safely using static position trackers
         for (int i = 0; i < travelerCount; i++) {
-            updateAnimation(&travelers[i], graph, positions);
-            drawAnimation(&travelers[i], positions, graph);
+            Vector2 catPos = positions[travelers[i].path[0]];
+            DrawCircle(catPos.x, catPos.y, 14, travelers[i].color);
+            DrawCircleLines(catPos.x, catPos.y, 14, BLACK);
 
-            if (travelers[i].arrived && travelers[i].childPid > 0) {
-                waitpid(travelers[i].childPid, NULL, WNOHANG);
-                travelers[i].childPid = 0;
-            }
+            char idStr[8];
+            snprintf(idStr, sizeof(idStr), "C%d", i);
+            DrawText(idStr, catPos.x - 8, catPos.y - 5, 11, WHITE);
         }
 
         drawPlayStopButton(&travelers[0]);
