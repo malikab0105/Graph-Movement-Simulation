@@ -53,8 +53,9 @@ make milestone3
 ```bash
 cd milestone3 && ./sim <filename with extension>
 ```
-## Milestone 4 — Concurrent Multi-Processing
 
+
+### Milestone 4 — Concurrent Multi-Processing
 Multiple traveler entities navigate through the graph concurrently, each calculating its own Dijkstra shortest path. individual traveler color palettes, and full POSIX multi-process tracking where a background child process is spawned for each traveler and safely terminated via signals upon arrival. NOTE: in this commitment, the extended parsing and multi-process architecture was implemented by the team leader to scale the simulation frame loops.
 
 **Compile:**
@@ -65,6 +66,8 @@ make milestone4
 ```bash
 cd milestone4 && ./sim <filename with extension>
 ```
+
+
 ### Milestone 5 — Multi-Process Animation with IPC
 Multiple autonomous traveler processes navigate the mansion simultaneously.
 Each child process computes its own Dijkstra path independently and reports
@@ -87,5 +90,37 @@ cd milestone5 && ./sim
 
 
 
+### Milestone 6 — Mutual Exclusion with Semaphores
+Each room node is protected by a binary semaphore — only one cat can occupy
+a node at a time. Travelers that arrive at an occupied node wait just outside
+it (shown with a red ring) until the node is released. The parent process
+manages the GUI and logs all movement events to the terminal.
+
+**IPC Method:** Named Pipe (FIFO) — all child processes write messages to a
+single shared pipe, and the parent reads from it. Each message contains the
+traveler's PID, current node, next node, and message type (WAITING, ARRIVED,
+or FINISHED), allowing the parent to identify and update each traveler's
+visual state independently.
+
+**Synchronization Mechanism:** POSIX Semaphores in shared memory — one
+semaphore per node, initialized to 1 (binary semaphore / mutex). Before
+entering a node, each child calls `sem_wait` which blocks if the node is
+occupied. After spending 1 second in the node, the child calls `sem_post`
+to release it, allowing the next waiting traveler to enter. The semaphores
+are allocated via `mmap` with `MAP_SHARED` so they are shared across all
+forked processes.
+
+**GUI indicators:**
+- Each cat is drawn in a different color
+- A red ring around a cat means it is waiting outside an occupied node
+
+**Compile:**
+```bash
+make milestone6
+```
+**Run:**
+```bash
+cd milestone6 && ./sim <input_file>
+```
 
 
