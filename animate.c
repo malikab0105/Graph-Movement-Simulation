@@ -28,6 +28,13 @@ void updateAnimation(AnimationState *anim, Graph *g, Vector2 *positions) {
 
     float delta = GetFrameTime();
 
+    // if traveler is currently occupying a node
+    if (anim->waitTimer > 0.0f) {
+        anim->waitTimer -= delta;
+        if (anim->waitTimer < 0.0f) anim->waitTimer = 0.0f;
+        return; // freeze edge movement progress until the 1-second stay expires
+    }
+
     int from = anim->path[0];
     int to = anim->path[1];
 
@@ -66,10 +73,14 @@ void drawAnimation(AnimationState *anim, Vector2 *positions, Graph *g) {
         if (t > 1.0f) t = 1.0f;
         if (t < 0.0f) t = 0.0f;
 
-        // Apply Linear Interpolation formulas to map smooth execution frame offsets
+        // Apply Linear Interpolation formulas
         catPos.x = positions[from].x + t * (positions[to].x - positions[from].x);
         catPos.y = positions[from].y + t * (positions[to].y - positions[from].y);
-    }
+
+        // if the cat is waiting for a node, highlight them by drawing a small red ring around them or modifying their base color.
+        if (anim->isWaiting) {
+            DrawRing(catPos, 18, 22, 0, 360, 0, RED);
+        }
 
     // --- RENDER TRAVELER CAT AVATAR SPRITE ---
     // Left ear triangle

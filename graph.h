@@ -9,6 +9,7 @@
 #include <sys/stat.h> // Added for mkfifo
 #include <sys/wait.h>
 #include <signal.h>
+#include <semaphore.h> // Added for POSIX semaphore support
 #include "raylib.h"
 
 
@@ -34,12 +35,18 @@ int dijkstra(Graph *g, int src, int dst, int *path);
 extern char rooms[][48];
 extern int numRooms;
 
+typedef enum {
+    STATUS_WAITING,     // Stuck outside a node, waiting for its lock
+    STATUS_OCCUPYING,    // Successfully holding the lock, spending 1 second inside
+    STATUS_FINISHED     // Completed the trip
+} TravelerStatus;
+
 typedef struct {
-    pid_t pid;          // The process ID of the autonomous child process
-    int travelerId;     // The index of the traveler (0, 1, 2, ...)
-    int current_node;   // The room node index the traveler just reached (X)
-    int next_node;      // The next room node index on the path (Y). Sets to -1 if at DESTINATION
-    bool is_finished;   // Set to true when the traveler reaches its ultimate destination
+    pid_t pid;
+    int travelerId;
+    int current_node;
+    int next_node;
+    TravelerStatus status; // Replaces is_finished flag with a multi-state status
 } IPCMessage;
 
 #define FIFO_CHANNEL "/tmp/mansion_simulation_fifo"
