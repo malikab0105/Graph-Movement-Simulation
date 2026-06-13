@@ -10,13 +10,12 @@ AnimationState initAnimation(int *path, int pathLength, Color customColor, pid_t
 
     anim.pathLength = pathLength;
     anim.currentNode = 0;
-    anim.progress = 0.0f;       // Start at the absolute beginning of the edge segment
-    anim.totalDuration = 1.0f;  // Baseline initialization value
-    anim.isPlaying = false;     // Remains frozen until the master PLAY button is clicked
+    anim.progress = 0.0f;
+    anim.totalDuration = 1.0f;
+    anim.isPlaying = false;
     anim.isWaiting = false;
     anim.waitTimer = 0.0f;
     anim.arrived = false;
-
     anim.color = customColor;
     anim.childPid = pid;
 
@@ -27,63 +26,47 @@ void updateAnimation(AnimationState *anim, Graph *g, Vector2 *positions) {
     if (!anim->isPlaying || anim->arrived)
         return;
 
-    float delta = GetFrameTime(); // Captures precise elapsed time since the previous frame
+    float delta = GetFrameTime();
 
-    // Handle the mandatory 1-second resting pause upon reaching a room node
-    if (anim->isWaiting) {
-        anim->waitTimer += delta;
-        if (anim->waitTimer >= 1.0f) {
-            anim->isWaiting = false;
-            anim->waitTimer = 0.0f;
+    int from = anim->path[0];
+    int to = anim->path[1];
+
+    // Recompute the segment duration from the edge weight at the start of each
+    // segment (progress == 0): heavier edges take longer to cross, lighter
+    // edges are crossed faster. Multiplying by 0.5f keeps a weight of 2 -> 1s,
+    // a weight of 4 -> 2s, etc.
+    if (anim->progress == 0.0f && from != to) {
+        anim->totalDuration = (float)g->matrix[from][to] * 0.5f;
+        if (anim->totalDuration <= 0.0f) {
+            anim->totalDuration = 0.5f;
         }
-        return;
     }
 
-    int from = anim->path[anim->currentNode];
-    int to = anim->path[anim->currentNode + 1];
-
-    // Scale total segment transit duration linearly proportional to the edge weight.
-    // Multiplying by 0.5f keeps a weight of 2 running for 1 second, a weight of 4 for 2 seconds, etc.
-    anim->totalDuration = (float)g->matrix[from][to] * 0.5f;
-
-    // Increment progress by the exact real-world frame time delta
-    anim->progress += delta;
-
-    // Check if the traversal of the current edge segment is fully complete
-    if (anim->progress >= anim->totalDuration) {
-        anim->progress = 0.0f;
-        anim->currentNode++;
-
-        // Verify if the traveler has hit its ultimate destination room target
-        if (anim->currentNode >= anim->pathLength - 1) {
-            anim->arrived = true;
-            return;
+    // Smoothly progress time factor up to the total edge transit limit duration
+    if (anim->progress < anim->totalDuration) {
+        anim->progress += delta;
+        if (anim->progress > anim->totalDuration) {
+            anim->progress = anim->totalDuration;
         }
-
-        // Trigger a resting pause before starting the next hallway transition
-        anim->isWaiting = true;
-        anim->waitTimer = 0.0f;
     }
 }
 
 void drawAnimation(AnimationState *anim, Vector2 *positions, Graph *g) {
     Vector2 catPos;
 
-    if (anim->arrived) {
-        catPos = positions[anim->path[anim->pathLength - 1]];
-    }
-    else if (anim->isWaiting || anim->currentNode >= anim->pathLength - 1) {
-        catPos = positions[anim->path[anim->currentNode]];
+    int from = anim->path[0];
+    int to = anim->path[1];
+
+    if (anim->arrived || from == to) {
+        catPos = positions[to];
     }
     else {
-        int from = anim->path[anim->currentNode];
-        int to = anim->path[anim->currentNode + 1];
-
-        // Compute the interpolation percentage ratio 't' (Clamped cleanly between 0.0 and 1.0)
+        // Calculate interpolation t-factor safely clamped between 0.0 and 1.0
         float t = anim->progress / anim->totalDuration;
         if (t > 1.0f) t = 1.0f;
+        if (t < 0.0f) t = 0.0f;
 
-        // Apply Linear Interpolation formulas to map smooth intermediate rendering coordinates
+        // Apply Linear Interpolation formulas to map smooth execution frame offsets
         catPos.x = positions[from].x + t * (positions[to].x - positions[from].x);
         catPos.y = positions[from].y + t * (positions[to].y - positions[from].y);
     }
@@ -124,12 +107,4 @@ void drawPlayStopButton(AnimationState *anim) {
 
     const char *label = anim->isPlaying ? "STOP" : "PLAY";
     DrawText(label, button.x + 40, button.y + 12, 20, WHITE);
-
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        Vector2 mouse = GetMousePosition();
-        if (CheckCollisionPointRec(mouse, button)) {
-            if (!anim->arrived)
-                anim->isPlaying = !anim->isPlaying;
-        }
-    }
 }
