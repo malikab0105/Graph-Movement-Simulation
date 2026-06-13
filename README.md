@@ -65,3 +65,27 @@ make milestone4
 ```bash
 cd milestone4 && ./sim <filename with extension>
 ```
+### Milestone 5 — Multi-Process Animation with IPC
+Multiple autonomous traveler processes navigate the mansion simultaneously.
+Each child process computes its own Dijkstra path independently and reports
+its position to the parent via a Named Pipe (FIFO). The parent manages the
+GUI and prints a log of all traveler movements to the terminal.
+
+**IPC Method:** Named Pipe (FIFO) — chosen for its simplicity and suitability
+for multiple writers (children) sending to a single reader (parent). Each
+message contains the traveler's PID, current node, next node, and whether
+they have reached their destination.
+
+**Compile:**
+```bash
+make milestone5
+```
+**Run:**
+```bash
+cd milestone5 && ./sim 
+```
+
+
+
+
+
