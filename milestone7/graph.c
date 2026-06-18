@@ -6,11 +6,11 @@
 #include <stdbool.h>
 #include "graph.h"
 
-// Parse graph architecture and traveler trajectories from text configuration layout files
+// Parsed structural configuration variables from raw configuration streams
 int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travelers) {
     FILE *file = fopen(filename, "r");
     if (!file) {
-        perror("Error opening graph configuration file");
+        perror("Error opening layout descriptor configuration file");
         return -1;
     }
 
@@ -20,6 +20,7 @@ int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travele
         return -1;
     }
 
+    // Allocate matrix properties
     *graph = (Graph *)malloc(sizeof(Graph));
     if (!(*graph)) {
         fclose(file);
@@ -27,14 +28,14 @@ int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travele
     }
     (*graph)->node = vertices;
 
-    // Clear and build initial mapping grid bounds
+    // Build default initial grid mapping states
     for (int i = 0; i < vertices; i++) {
         for (int j = 0; j < vertices; j++) {
             (*graph)->matrix[i][j] = 0;
         }
     }
 
-    // Read and map matrix edge configurations
+    // Populate actual matrix edge configurations
     for (int i = 0; i < vertices; i++) {
         for (int j = 0; j < vertices; j++) {
             int val;
@@ -49,6 +50,7 @@ int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travele
 
     int travelerCount = 0;
     if (fscanf(file, "%d", &travelerCount) != 1) {
+        // Fallback default state safety checks if trailing definitions are missing
         travelerCount = 0;
     }
 
@@ -107,10 +109,10 @@ int dijkstra(Graph *g, int src, int dst, int *path) {
     }
 
     if (dist[dst] == 999999) {
-        return 0; // Destination node evaluated out as completely unreachable
+        return 0; // Destination path evaluates out as completely unreachable
     }
 
-    // Reconstruct routing nodes array from parent mapping trace indexes
+    // Reconstruction step array parameters parsing
     int tempPath[30];
     int count = 0;
     int curr = dst;
@@ -120,7 +122,7 @@ int dijkstra(Graph *g, int src, int dst, int *path) {
         curr = parent[curr];
     }
 
-    // Invert the target array to output the direct trajectory path sequence order
+    // Invert output array ordering sequences matching index trajectory metrics
     int idx = 0;
     for (int i = count - 1; i >= 0; i--) {
         path[idx++] = tempPath[i];
