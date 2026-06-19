@@ -63,6 +63,7 @@ typedef struct {
 
 TravelerQueue      msgQueues[MAX_TRAVELERS];
 NodeSchedulerQueue nodeQueues[MAX_NODES];
+bool               travelerActuallyWaiting[MAX_TRAVELERS];
 
 /* ─── Shared semaphore array ──────────────────────────────────── */
 TravelerSems *traveler_sems = NULL;
@@ -190,6 +191,7 @@ int main(int argc, char *argv[]) {
         metrics[i].waitCount    = 0;
         metrics[i].waitStartNs  = 0;
         metrics[i].isWaitingNow = false;
+        travelerActuallyWaiting[i] = false;
     }
 
     /* Sanity: unique start nodes */
@@ -432,7 +434,22 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        /* ── 3. Feed Visual Animation Queue ────────────────── */
+        /* ── 3. Update waiting flags ────────────────────────── */
+        for (int i = 0; i < numTravelers; i++) {
+            travelerActuallyWaiting[i] = false;
+        }
+        for (int n = 0; n < graph->node; n++) {
+            if (nodeQueues[n].currentOccupant != -1) {
+                for (int k = 0; k < nodeQueues[n].waiterCount; k++) {
+                    int tId = nodeQueues[n].waitingTravelers[k];
+                    if (tId >= 0 && tId < numTravelers) {
+                        travelerActuallyWaiting[tId] = true;
+                    }
+                }
+            }
+        }
+
+        /* ── 4. Feed Visual Animation Queue ────────────────── */
         for (int i = 0; i < numTravelers; i++) {
             while (msgQueues[i].count > 0) {
                 bool ready = false;
@@ -450,7 +467,7 @@ int main(int argc, char *argv[]) {
                 msgQueues[i].count--;
 
                 if (msg.type == MSG_WAITING) {
-                    visual_travelers[i].isWaiting = true;
+                    visual_travelers[i].isWaiting = travelerActuallyWaiting[i];
                 } else if (msg.type == MSG_FINISHED) {
                     visual_travelers[i].path[0]    = msg.current_node;
                     visual_travelers[i].path[1]    = msg.current_node;
@@ -480,7 +497,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        /* ── 4. Play/Stop Button ────────────────────────────── */
+        /* ── 5. Play/Stop Button ────────────────────────────── */
         Rectangle buttonRec = { 340, 550, 120, 40 };
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Vector2 mouse = GetMousePosition();
@@ -502,7 +519,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        /* ── 5. Draw ────────────────────────────────────────── */
+        /* ── 6. Draw ────────────────────────────────────────── */
         BeginDrawing();
         ClearBackground(RAYWHITE);
         drawGraph(graph, positions);
