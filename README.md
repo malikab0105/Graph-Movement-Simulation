@@ -90,45 +90,6 @@ cd milestone5 && ./sim
 
 
 
-### Milestone 7 — Scheduling Algorithms (FCFS / SJF)
-
-The parent process now uses a central scheduler to decide which waiting traveler
-enters a node next, instead of allowing children to compete directly via semaphores.
-Two scheduling algorithms are supported:
-
-| Algorithm | Description |
-|-----------|-------------|
-| **FCFS** (First-Come, First-Served) | The traveler that arrived at the node earliest enters first. |
-| **SJF** (Shortest Job First) | The traveler with the shortest next edge weight enters first; ties are broken by arrival time. |
-
-**CLI format:**
-```bash
-./sim -schd fcfs <input_file>
-./sim -schd sjf <input_file>
-```
-
-**Effect on execution times:** SJF can reduce total waiting time by letting
-travelers with short remaining edges pass quickly, while FCFS treats all
-travelers equally regardless of their remaining path length. For the same
-input, SJF typically yields lower average wait times when travelers have
-uneven edge weights.
-
-**New GUI features:**
-- Scheduler banner at the top showing the active algorithm
-- Red queue-badge circles with a count next to each node
-
-**Metrics:** When all travelers finish, a table is printed showing each
-traveler's total wait time and how many times they were queued.
-
-**Compile:**
-```bash
-make milestone7
-```
-**Run:**
-```bash
-cd milestone7 && ./sim -schd fcfs input.txt
-```
-
 ### Milestone 6 — Mutual Exclusion with Semaphores
 Each room node is protected by a binary semaphore — only one cat can occupy
 a node at a time. Travelers that arrive at an occupied node wait just outside
@@ -160,6 +121,19 @@ make milestone6
 **Run:**
 ```bash
 cd milestone6 && ./sim <input_file>
+```
+
+### Milestone 7 — Scheduling Algorithms
+
+The parent uses a central scheduler (FCFS or SJF) to decide which waiting traveler enters a node next, replacing direct semaphore contention from milestone 6. Includes a GUI banner showing the active algorithm, red queue-badge circles on nodes, and a metrics table printed at the end.
+
+**Compile:**
+```bash
+make milestone7
+```
+**Run:**
+```bash
+cd milestone7 && ./sim -schd fcfs input.txt
 ```
 
 
