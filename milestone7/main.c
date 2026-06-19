@@ -357,8 +357,13 @@ int main(int argc, char *argv[]) {
             int nId = rm.current_node;
 
             if (rm.type == MSG_WAITING) {
-                visual_travelers[tId].isWaiting = true;
-
+                /* Don't set isWaiting here — it would freeze the
+                   animation mid-edge.  Handled in visual queue.    */
+                if (msgQueues[tId].count < MAX_QUEUE) {
+                    msgQueues[tId].queue[msgQueues[tId].tail] = rm;
+                    msgQueues[tId].tail = (msgQueues[tId].tail + 1) % MAX_QUEUE;
+                    msgQueues[tId].count++;
+                }
                 int pos = nodeQueues[nId].waiterCount;
                 nodeQueues[nId].waitingTravelers[pos] = tId;
                 nodeQueues[nId].nextNodes[pos]        = rm.next_node;
@@ -377,10 +382,8 @@ int main(int argc, char *argv[]) {
                 sem_post(&traveler_sems[tId].leave_sem);
             }
             else if (rm.type == MSG_FINISHED) {
-                /* Traveler reached destination — clear occupant immediately
-                   so other waiters at this node can be dispatched          */
-                nodeQueues[nId].currentOccupant = -1;
-                /* Also queue for the visual layer */
+                /* Queue for the visual layer; occupant stays set
+                   until MSG_LEAVING (child still sleeps 1s)       */
                 if (msgQueues[tId].count < MAX_QUEUE) {
                     msgQueues[tId].queue[msgQueues[tId].tail] = rm;
                     msgQueues[tId].tail = (msgQueues[tId].tail + 1) % MAX_QUEUE;
@@ -446,7 +449,9 @@ int main(int argc, char *argv[]) {
                 msgQueues[i].head  = (msgQueues[i].head + 1) % MAX_QUEUE;
                 msgQueues[i].count--;
 
-                if (msg.type == MSG_FINISHED) {
+                if (msg.type == MSG_WAITING) {
+                    visual_travelers[i].isWaiting = true;
+                } else if (msg.type == MSG_FINISHED) {
                     visual_travelers[i].path[0]    = msg.current_node;
                     visual_travelers[i].path[1]    = msg.current_node;
                     visual_travelers[i].pathLength = 1;
