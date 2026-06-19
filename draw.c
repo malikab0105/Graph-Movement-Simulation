@@ -82,15 +82,17 @@ void drawGraph(Graph *g, Vector2 *positions) {
         DrawCircle((int)positions[i].x, (int)positions[i].y, NODE_RADIUS, BEIGE);
         DrawCircleLines((int)positions[i].x, (int)positions[i].y, NODE_RADIUS, DARKBROWN);
 
-        // Room ID
+        // Room ID inside the circle
         char label[16];
         snprintf(label, sizeof(label), "%d", i);
         int numWidth = MeasureText(label, 11);
         DrawText(label, (int)positions[i].x - numWidth / 2, (int)positions[i].y - 5, 11, MAROON);
 
-        // Clean label padding underneath the node bounds
-        int textWidth = MeasureText(rooms[i], 10);
-        DrawText(rooms[i], (int)positions[i].x - textWidth / 2, (int)positions[i].y + NODE_RADIUS + 6, 10, BLACK);
+        // Node number label underneath the circle (replaces undefined rooms[i])
+        char nodeLabel[16];
+        snprintf(nodeLabel, sizeof(nodeLabel), "Node %d", i);
+        int textWidth = MeasureText(nodeLabel, 10);
+        DrawText(nodeLabel, (int)positions[i].x - textWidth / 2, (int)positions[i].y + NODE_RADIUS + 6, 10, DARKGRAY);
     }
 }
 

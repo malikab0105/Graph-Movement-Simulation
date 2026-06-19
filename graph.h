@@ -18,13 +18,12 @@ typedef struct {
     int dst;
 } TravelerInfo;
 
-// Define message channels and state variants
 typedef enum {
     MSG_WAITING,
     MSG_ARRIVED,
     MSG_FINISHED,
-    MSG_LEAVING    // <-- Explicitly declared to resolve your compilation error
-} MessageType;
+    MSG_LEAVING
+} IPCMessageType;          /* renamed from MessageType to match main.c */
 
 typedef struct {
     pid_t pid;
@@ -32,7 +31,7 @@ typedef struct {
     int current_node;
     int next_node;
     bool is_finished;
-    MessageType type;
+    IPCMessageType type;   /* updated to match the renamed enum */
 } IPCMessage;
 
 int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travelers);
