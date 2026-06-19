@@ -22,7 +22,7 @@ milestone6:
 	$(CC) $(CFLAGS) milestone6/main.c milestone6/graph.c milestone6/draw.c milestone6/animate.c -o milestone6/sim -lraylib -lm -lpthread -ldl -lrt -lX11
 
 milestone7:
-	$(CC) $(CFLAGS) -Imilestone7 milestone7/main.c milestone7/graph.c milestone7/draw.c milestone7/animate.c -o milestone7/sim-schd -lraylib -lm -lpthread -ldl -lrt -lX11
+	$(CC) $(CFLAGS) -Imilestone7 milestone7/main.c milestone7/graph.c milestone7/draw.c milestone7/animate.c -o milestone7/sim -lraylib -lm -lpthread -ldl -lrt -lX11
 
 clean:
 	rm -f milestone1/dijkstra milestone2/sim milestone3/sim milestone4/sim milestone5/sim milestone6/sim milestone7/sim-schd

@@ -141,19 +141,19 @@ void CleanUpChildren(void) {
    MAIN
    ═══════════════════════════════════════════════════════════════ */
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Usage: %s <fcfs|sjf> <input_file>\n", argv[0]);
+    if (argc < 4 || strcmp(argv[1], "-schd") != 0) {
+        printf("Usage: %s -schd <fcfs|sjf> <input_file>\n", argv[0]);
         return 1;
     }
 
-    if (strcmp(argv[1], "fcfs") == 0)      activeMode = SCHED_FCFS;
-    else if (strcmp(argv[1], "sjf") == 0)  activeMode = SCHED_SJF;
+    if (strcmp(argv[2], "fcfs") == 0)      activeMode = SCHED_FCFS;
+    else if (strcmp(argv[2], "sjf") == 0)  activeMode = SCHED_SJF;
     else {
         fprintf(stderr, "Error: use 'fcfs' or 'sjf'\n");
         return 1;
     }
 
-    numTravelers = readGraphExtended(argv[2], &graph, travelers);
+    numTravelers = readGraphExtended(argv[3], &graph, travelers);
     if (numTravelers <= 0 || !graph) {
         fprintf(stderr, "Error parsing graph layout or loading travelers.\n");
         return 1;
