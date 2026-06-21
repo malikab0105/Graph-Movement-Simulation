@@ -18,8 +18,8 @@
 #include "draw.h"
 #include "animate.h"
 
-#define MAX_TRAVELERS 15
-#define MAX_NODES     30
+#define MAX_TRAVELERS GRAPH_MAX_TRAVELERS  /* tied to graph.h so the two can never disagree */
+#define MAX_NODES     GRAPH_MAX_NODES      /* tied to graph.h so the two can never disagree */
 #define MAX_QUEUE     20
 
 /* ─── Scheduling Mode ─────────────────────────────────────────── */

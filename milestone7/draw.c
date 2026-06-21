@@ -2,8 +2,7 @@
 #include <stdio.h>    // snprintf
 #include <math.h>     // sqrtf, atan2f, cosf, sinf
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+// WINDOW_WIDTH / WINDOW_HEIGHT come from graph.h (via draw.h) — not redefined here
 #define NODE_RADIUS 24
 
 // Helper function to calculate a point on a quadratic Bezier curve

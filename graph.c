@@ -45,6 +45,19 @@ int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travele
         edges    = -1;
     }
 
+    /* Reject graphs that would overflow the fixed-size matrix.
+       Without this check, a malicious or malformed input file could
+       write past matrix[GRAPH_MAX_NODES][GRAPH_MAX_NODES] (stack
+       buffer overflow / undefined behavior).                        */
+    if (vertices <= 0 || vertices > GRAPH_MAX_NODES) {
+        fprintf(stderr, "Error: node count %d out of supported range (1-%d)\n",
+                vertices, GRAPH_MAX_NODES);
+        free(*graph);
+        *graph = NULL;
+        fclose(file);
+        return -1;
+    }
+
     (*graph)->node = vertices;
     for (int i = 0; i < vertices; i++)
         for (int j = 0; j < vertices; j++)
@@ -82,6 +95,12 @@ int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travele
     if (fscanf(file, "%d", &travelerCount) != 1) {
         travelerCount = 0;
     }
+    if (travelerCount > GRAPH_MAX_TRAVELERS) {
+        fprintf(stderr,
+                "Warning: input requests %d travelers, capping at %d\n",
+                travelerCount, GRAPH_MAX_TRAVELERS);
+        travelerCount = GRAPH_MAX_TRAVELERS;
+    }
     for (int i = 0; i < travelerCount; i++) {
         int src, dst;
         if (fscanf(file, "%d %d", &src, &dst) != 2) break;
@@ -97,12 +116,12 @@ int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travele
     return travelerCount;
 }
 
-/* Dijkstra — unchanged */
+/* Dijkstra — unchanged logic, sizes now tied to GRAPH_MAX_NODES */
 int dijkstra(Graph *g, int src, int dst, int *path) {
     int n = g->node;
-    int dist[30];
-    bool visited[30];
-    int parent[30];
+    int dist[GRAPH_MAX_NODES];
+    bool visited[GRAPH_MAX_NODES];
+    int parent[GRAPH_MAX_NODES];
 
     for (int i = 0; i < n; i++) {
         dist[i] = 999999; visited[i] = false; parent[i] = -1;
@@ -126,7 +145,7 @@ int dijkstra(Graph *g, int src, int dst, int *path) {
 
     if (dist[dst] == 999999) return 0;
 
-    int tempPath[30], count = 0, curr = dst;
+    int tempPath[GRAPH_MAX_NODES], count = 0, curr = dst;
     while (curr != -1) { tempPath[count++] = curr; curr = parent[curr]; }
     for (int i = 0; i < count; i++) path[i] = tempPath[count - 1 - i];
     return count;

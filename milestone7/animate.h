@@ -4,17 +4,18 @@
 #include "raylib.h"
 #include "graph.h"
 #include <sys/types.h>
+#include <stdbool.h>
 
 typedef struct {
-    int path[15];
-    int pathLength;
-    int currentNode;
-    float progress;       // Tracks time elapsed on the current edge segment
-    float totalDuration;  // Total time required to traverse the current edge
-    bool isPlaying;
-    bool isWaiting;
+    int   path[15];
+    int   pathLength;
+    int   currentNode;
+    float progress;
+    float totalDuration;
+    bool  isPlaying;
+    bool  isWaiting;
     float waitTimer;
-    bool arrived;
+    bool  arrived;
     Color color;
     pid_t childPid;
 } AnimationState;

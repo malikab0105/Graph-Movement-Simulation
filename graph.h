@@ -7,10 +7,12 @@
 #define WINDOW_WIDTH  800
 #define WINDOW_HEIGHT 600
 #define FIFO_CHANNEL  "/tmp/mansion_simulation_fifo"
+#define GRAPH_MAX_NODES 30
+#define GRAPH_MAX_TRAVELERS 15
 
 typedef struct {
     int node;
-    int matrix[30][30];
+    int matrix[GRAPH_MAX_NODES][GRAPH_MAX_NODES];
 } Graph;
 
 typedef struct {
