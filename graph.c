@@ -106,10 +106,26 @@ int readGraphExtended(const char *filename, Graph **graph, TravelerInfo *travele
         if (fscanf(file, "%d %d", &src, &dst) != 2) break;
         travelers[i].src = src;
         travelers[i].dst = dst;
-        /* Consume optional color label on the same line */
-        char color[32];
+        /* Consume an optional color label on the same line, e.g.
+           "0 5 GREEN". We must NOT consume it if the next token is
+           actually the next traveler's <src> — %s does not stop at
+           newlines, so without this check it would silently eat
+           the next line's number and desync every traveler after it. */
         long p = ftell(file);
-        if (fscanf(file, "%31s", color) != 1) fseek(file, p, SEEK_SET);
+        char token[32];
+        if (fscanf(file, "%31s", token) == 1) {
+            /* A color label always starts with a letter; a coordinate
+               value is purely numeric. Only commit the consumption
+               if this token is NOT a plain integer. */
+            char *endptr;
+            strtol(token, &endptr, 10);
+            bool isPureNumber = (*endptr == '\0');
+            if (isPureNumber) {
+                fseek(file, p, SEEK_SET);  /* put it back — belongs to next traveler */
+            }
+        } else {
+            fseek(file, p, SEEK_SET);
+        }
     }
 
     fclose(file);
