@@ -24,5 +24,18 @@ milestone6:
 milestone7:
 	$(CC) $(CFLAGS) -Imilestone7 milestone7/main.c milestone7/graph.c milestone7/draw.c milestone7/animate.c -o milestone7/sim -lraylib -lm -lpthread -ldl -lrt -lX11
 
+raylib:
+sudo apt update
+	sudo apt install -y build-essential cmake git \
+		libx11-dev libxrandr-dev libxi-dev \
+		libgl1-mesa-dev libxcursor-dev libxinerama-dev
+	rm -rf /tmp/raylib
+	git clone https://github.com/raysan5/raylib.git /tmp/raylib
+	cd /tmp/raylib && mkdir -p build
+	cd /tmp/raylib/build && cmake ..
+	cd /tmp/raylib/build && make
+	cd /tmp/raylib/build && sudo make install
+	sudo ldconfig
+
 clean:
 	rm -f milestone1/dijkstra milestone2/sim milestone3/sim milestone4/sim milestone5/sim milestone6/sim milestone7/sim
