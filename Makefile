@@ -1,4 +1,4 @@
-.PHONY: milestone1 milestone2 milestone3 milestone4 milestone5 milestone6 milestone7 clean
+.PHONY: milestone1 milestone2 milestone3 milestone4 milestone5 milestone6 milestone7 raylib clean
 
 CC     = gcc
 CFLAGS = -Wall -std=c99
@@ -25,16 +25,14 @@ milestone7:
 	$(CC) $(CFLAGS) -Imilestone7 milestone7/main.c milestone7/graph.c milestone7/draw.c milestone7/animate.c -o milestone7/sim -lraylib -lm -lpthread -ldl -lrt -lX11
 
 raylib:
-sudo apt update
+	sudo apt update
 	sudo apt install -y build-essential cmake git \
 		libx11-dev libxrandr-dev libxi-dev \
 		libgl1-mesa-dev libxcursor-dev libxinerama-dev
 	rm -rf /tmp/raylib
 	git clone https://github.com/raysan5/raylib.git /tmp/raylib
-	cd /tmp/raylib && mkdir -p build
-	cd /tmp/raylib/build && cmake ..
-	cd /tmp/raylib/build && make
-	cd /tmp/raylib/build && sudo make install
+	mkdir -p /tmp/raylib/build
+	cd /tmp/raylib/build && cmake .. && make && sudo make install
 	sudo ldconfig
 
 clean:
