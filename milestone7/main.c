@@ -23,7 +23,7 @@
 #define MAX_QUEUE     20
 
 /* ─── Scheduling Mode ─────────────────────────────────────────── */
-typedef enum { SCHED_FCFS, SCHED_SJF } SchedMode;
+typedef enum { SCHED_FCFS, SCHED_SJF, SCHED_PRIORITY } SchedMode;
 SchedMode activeMode = SCHED_FCFS;
 
 /* ─── Shared memory layout ────────────────────────────────────── */
@@ -108,14 +108,35 @@ int choose_next_traveler(int node_id) {
         }
         return bestIdx;
     }
+
+    /* ─── TASK D: PRIORITY SCHEDULER (LOWEST PID FIRST) ─── */
+    if (activeMode == SCHED_PRIORITY) {
+        int bestIdx = 0;
+        int minPid = 2147483647; // Max integer bound for structural bounds comparison
+
+        for (int i = 0; i < q->waiterCount; i++) {
+            int tId = q->waitingTravelers[i];
+            int currentPid = visual_travelers[tId].childPid; // Safely read real child process OS PID
+
+            if (currentPid < minPid) {
+                minPid = currentPid;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    }
+
     return 0;
 }
 
 /* ─── Metrics printer ─────────────────────────────────────────── */
 static void print_metrics(void) {
+    const char *modeStr = "FCFS";
+    if (activeMode == SCHED_SJF) modeStr = "SJF ";
+    if (activeMode == SCHED_PRIORITY) modeStr = "PRIO";
+
     printf("\n╔══════════════════════════════════════════════════════╗\n");
-    printf(  "║        SCHEDULING METRICS  [%s]                  ║\n",
-             activeMode == SCHED_FCFS ? "FCFS" : "SJF ");
+    printf(  "║        SCHEDULING METRICS  [%s]                  ║\n", modeStr);
     printf(  "╠═══════════╦══════════════════╦═════════════════════╣\n");
     printf(  "║ Traveler  ║  Total Wait (ms) ║  Times Queued       ║\n");
     printf(  "╠═══════════╬══════════════════╬═════════════════════╣\n");
@@ -143,14 +164,15 @@ void CleanUpChildren(void) {
    ═══════════════════════════════════════════════════════════════ */
 int main(int argc, char *argv[]) {
     if (argc < 4 || strcmp(argv[1], "-schd") != 0) {
-        printf("Usage: %s -schd <fcfs|sjf> <input_file>\n", argv[0]);
+        printf("Usage: %s -schd <fcfs|sjf|priority> <input_file>\n", argv[0]);
         return 1;
     }
 
     if (strcmp(argv[2], "fcfs") == 0)      activeMode = SCHED_FCFS;
     else if (strcmp(argv[2], "sjf") == 0)  activeMode = SCHED_SJF;
+    else if (strcmp(argv[2], "priority") == 0) activeMode = SCHED_PRIORITY;
     else {
-        fprintf(stderr, "Error: use 'fcfs' or 'sjf'\n");
+        fprintf(stderr, "Error: use 'fcfs', 'sjf' or 'priority'\n");
         return 1;
     }
 
@@ -227,7 +249,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
-    printf("Scheduler: %s\n", activeMode == SCHED_FCFS ? "FCFS" : "SJF");
+    printf("Scheduler: %s\n", activeMode == SCHED_FCFS ? "FCFS" : (activeMode == SCHED_SJF ? "SJF" : "PRIORITY"));
     printf("--------------------------------------\n\n");
 
     /* Create FIFO */
@@ -525,9 +547,10 @@ int main(int argc, char *argv[]) {
         drawGraph(graph, positions);
 
         /* Scheduler banner */
-        const char *modeLabel = (activeMode == SCHED_FCFS)
-                                ? "ACTIVE SCHEDULER: FCFS"
-                                : "ACTIVE SCHEDULER: SJF";
+        const char *modeLabel = "ACTIVE SCHEDULER: FCFS";
+        if (activeMode == SCHED_SJF) modeLabel = "ACTIVE SCHEDULER: SJF";
+        else if (activeMode == SCHED_PRIORITY) modeLabel = "ACTIVE SCHEDULER: PRIORITY";
+
         DrawRectangle(0, 0, WINDOW_WIDTH, 28, Fade(BLACK, 0.55f));
         DrawText(modeLabel, 10, 6, 18, YELLOW);
 
