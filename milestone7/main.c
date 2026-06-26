@@ -23,7 +23,7 @@
 #define MAX_QUEUE     20
 
 /* ─── Scheduling Mode ─────────────────────────────────────────── */
-typedef enum { SCHED_FCFS, SCHED_SJF } SchedMode;
+typedef enum { SCHED_FCFS, SCHED_SJF, SCHED_PRIORITY } SchedMode;
 SchedMode activeMode = SCHED_FCFS;
 
 /* ─── Shared memory layout ────────────────────────────────────── */
@@ -39,6 +39,7 @@ typedef struct {
     long  arrivalTimes[MAX_TRAVELERS];
     int   waiterCount;
     int   currentOccupant;
+    pid_t pids[MAX_TRAVELERS];
 } NodeSchedulerQueue;
 
 /* ─── Per-Traveler Wait Metrics ───────────────────────────────── */
@@ -106,6 +107,19 @@ int choose_next_traveler(int node_id) {
                 bestIdx   = i;
             }
         }
+
+        return bestIdx;
+    }
+
+    if (activeMode == SCHED_PRIORITY) {
+        int  bestIdx = 0;
+        pid_t bestPid = q->pids[0];
+        for (int i = 1; i < q->waiterCount; i++) {
+            if (q->pids[i] < bestPid) {
+                bestPid = q->pids[i];
+                bestIdx = i;
+            }
+        }
         return bestIdx;
     }
     return 0;
@@ -113,9 +127,11 @@ int choose_next_traveler(int node_id) {
 
 /* ─── Metrics printer ─────────────────────────────────────────── */
 static void print_metrics(void) {
+    const char *schedName = (activeMode == SCHED_FCFS)     ? "FCFS    " :
+                            (activeMode == SCHED_SJF)      ? "SJF     " :
+                                                             "PRIORITY";
     printf("\n╔══════════════════════════════════════════════════════╗\n");
-    printf(  "║        SCHEDULING METRICS  [%s]                  ║\n",
-             activeMode == SCHED_FCFS ? "FCFS" : "SJF ");
+    printf(  "║        SCHEDULING METRICS  [%s]                  ║\n", schedName);
     printf(  "╠═══════════╦══════════════════╦═════════════════════╣\n");
     printf(  "║ Traveler  ║  Total Wait (ms) ║  Times Queued       ║\n");
     printf(  "╠═══════════╬══════════════════╬═════════════════════╣\n");
@@ -126,7 +142,6 @@ static void print_metrics(void) {
     }
     printf(  "╚═══════════╩══════════════════╩═════════════════════╝\n\n");
 }
-
 /* ─── Kill all child processes ────────────────────────────────── */
 void CleanUpChildren(void) {
     for (int i = 0; i < numTravelers; i++) {
@@ -143,14 +158,15 @@ void CleanUpChildren(void) {
    ═══════════════════════════════════════════════════════════════ */
 int main(int argc, char *argv[]) {
     if (argc < 4 || strcmp(argv[1], "-schd") != 0) {
-        printf("Usage: %s -schd <fcfs|sjf> <input_file>\n", argv[0]);
+        printf("Usage: %s -schd <fcfs | sjf | priority> <input_file>\n", argv[0]);
         return 1;
     }
 
     if (strcmp(argv[2], "fcfs") == 0)      activeMode = SCHED_FCFS;
     else if (strcmp(argv[2], "sjf") == 0)  activeMode = SCHED_SJF;
+    else if (strcmp(argv[2], "priority") == 0)   activeMode = SCHED_PRIORITY;
     else {
-        fprintf(stderr, "Error: use 'fcfs' or 'sjf'\n");
+        fprintf(stderr, "Error: use 'fcfs' , 'sjf' or 'priority' \n");
         return 1;
     }
 
@@ -227,7 +243,9 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
-    printf("Scheduler: %s\n", activeMode == SCHED_FCFS ? "FCFS" : "SJF");
+    if (activeMode == SCHED_FCFS) printf("Scheduler: FCFS\n");
+    else if (activeMode == SCHED_SJF) printf("Scheduler: SJF\n");
+    else printf("Scheduler: Priority\n");
     printf("--------------------------------------\n\n");
 
     /* Create FIFO */
@@ -371,6 +389,7 @@ int main(int argc, char *argv[]) {
                 nodeQueues[nId].nextNodes[pos]        = rm.next_node;
                 nodeQueues[nId].arrivalTimes[pos]     = now_ns();
                 nodeQueues[nId].waiterCount++;
+                nodeQueues[nId].pids[pos]             = rm.pid;
 
                 if (!metrics[tId].isWaitingNow) {
                     metrics[tId].waitStartNs  = now_ns();
@@ -525,11 +544,20 @@ int main(int argc, char *argv[]) {
         drawGraph(graph, positions);
 
         /* Scheduler banner */
-        const char *modeLabel = (activeMode == SCHED_FCFS)
-                                ? "ACTIVE SCHEDULER: FCFS"
-                                : "ACTIVE SCHEDULER: SJF";
-        DrawRectangle(0, 0, WINDOW_WIDTH, 28, Fade(BLACK, 0.55f));
-        DrawText(modeLabel, 10, 6, 18, YELLOW);
+
+        if (activeMode == SCHED_FCFS) {
+            const char *modeLabel = "ACTIVE SCHEDULER: FCFS"; DrawRectangle(0, 0, WINDOW_WIDTH, 28, Fade(BLACK, 0.55f));
+            DrawText(modeLabel, 10, 6, 18, YELLOW);
+        }
+        else if (activeMode == SCHED_SJF) {
+            const char *modeLabel = "ACTIVE SCHEDULER: SJF"; DrawRectangle(0, 0, WINDOW_WIDTH, 28, Fade(BLACK, 0.55f));
+            DrawText(modeLabel, 10, 6, 18, YELLOW);
+        }
+        else {
+            const char *modeLabel = "ACTIVE SCHEDULER: PRIORITY"; DrawRectangle(0, 0, WINDOW_WIDTH, 28, Fade(BLACK, 0.55f));
+            DrawText(modeLabel, 10, 6, 18, YELLOW);
+        }
+
 
         /* Queue size badges */
         for (int n = 0; n < graph->node; n++) {
